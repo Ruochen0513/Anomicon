@@ -9,8 +9,10 @@ import {
   ExploreCollectionRouteParams,
   LibraryCollectionRouteParams,
   ScpArticleRouteParams,
+  Scp3DArchiveRouteParams,
   resolveArticleRouteContent
 } from './AppRoutes';
+import { LibraryContentKind } from 'library';
 
 /**
  * Product-owned route boundary.
@@ -61,4 +63,21 @@ export function parseArticleRouteContent(
   } catch (_error) {
     return undefined;
   }
+}
+
+/**
+ * Reuse the article value-object parser, then narrow the route to SCP items.
+ * A malformed or non-SCP payload never reaches Scene.load or the renderer.
+ */
+export function parseScp3DArchiveRoute(
+  param: Object | null | undefined
+): Scp3DArchiveRouteParams | undefined {
+  if (param === undefined || param === null || typeof param !== 'object') {
+    return undefined;
+  }
+  const content = parseArticleRouteContent(param);
+  if (content === undefined || content.kind !== LibraryContentKind.SCP) {
+    return undefined;
+  }
+  return { content: content };
 }

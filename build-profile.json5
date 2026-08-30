@@ -83,6 +83,15 @@
       ]
     },
     {
+      "name": "archive3d",
+      "srcPath": "./features/archive3d",
+      "targets": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
       "name": "phone",
       "srcPath": "./products/phone",
       "targets": [

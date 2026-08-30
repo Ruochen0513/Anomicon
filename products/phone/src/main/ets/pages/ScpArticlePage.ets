@@ -22,7 +22,8 @@ import {
 } from 'article';
 import {
   AppRoutes,
-  ScpArticleRouteParams
+  ScpArticleRouteParams,
+  Scp3DArchiveRouteParams
 } from '../navigation/AppRoutes';
 import {
   parseArticleRouteContent
@@ -58,7 +59,8 @@ export function ScpArticlePageBuilder(
   imageActions: ImagePreviewActions,
   hapticService: HapticFeedbackPort,
   settings: SettingsViewModel,
-  research: ResearchProfileViewModel
+  research: ResearchProfileViewModel,
+  archive3dAvailability: (contentId: string) => boolean
 ) {
   // The product route adapter is the only composition boundary.  This View
   // receives serializable state and narrow capabilities; it never constructs
@@ -68,7 +70,8 @@ export function ScpArticlePageBuilder(
     imageActions: imageActions,
     hapticService: hapticService,
     settings: settings,
-    research: research
+    research: research,
+    archive3dAvailability: archive3dAvailability
   })
 }
 
@@ -79,6 +82,7 @@ struct ScpArticlePage {
   @Require @Param hapticService: HapticFeedbackPort;
   @Require @Param settings: SettingsViewModel;
   @Require @Param research: ResearchProfileViewModel;
+  @Require @Param archive3dAvailability: (contentId: string) => boolean;
   private pageStack: NavPathStack | undefined = undefined;
   private scroller: Scroller = new Scroller();
   private sourceUrl: string = '';
@@ -455,6 +459,32 @@ struct ScpArticlePage {
     AppNavigationCoordinator.push(this.pageStack, AppRoutes.ARTICLE, params);
   }
 
+  /** Keep the 3D entry scoped to SCP objects and to a reviewed asset row. */
+  private canOpenArchive3D(): boolean {
+    return this.contentKind === LibraryContentKind.SCP && this.itemId.length > 0 &&
+      this.archive3dAvailability(this.itemId.toLowerCase());
+  }
+
+  private openArchive3D(): void {
+    if (!this.canOpenArchive3D()) {
+      return;
+    }
+    const content = this.currentLibraryContent();
+    if (content === undefined) {
+      return;
+    }
+    this.hapticService.playSelection(this.settings.hapticEnabled);
+    const params: Scp3DArchiveRouteParams = { content: content };
+    AppNavigationCoordinator.push(this.pageStack, AppRoutes.ARCHIVE_3D, params);
+  }
+
+  private articleMenuMaxCount(): number {
+    // Reserve the two primary slots only when the SCP-specific archive action
+    // is actually present; tale/wiki readers keep the original three-action
+    // title bar and avoid an unrelated regression.
+    return this.canOpenArchive3D() ? 2 : 3;
+  }
+
   private articleMenuItems(): HdsNavigationMenuItemOptions[] {
     const items: HdsNavigationMenuItemOptions[] = [{
       content: {
@@ -468,6 +498,15 @@ struct ScpArticlePage {
         }
       }
     }];
+    if (this.canOpenArchive3D()) {
+      items.push({
+        content: {
+          icon: $r('sys.symbol.square_stack_3d'),
+          label: '三维档案',
+          action: () => this.openArchive3D()
+        }
+      });
+    }
     items.push({
       content: {
         icon: $r('sys.symbol.arrow_up_right'),
@@ -682,7 +721,11 @@ struct ScpArticlePage {
         },
         backIcon: { label: '返回', componentId: 'articleBackButton' },
         menu: {
-          value: this.articleMenuItems()
+          // HDS keeps the first two actions in the title bar and moves the
+          // remaining article actions into More. This makes 收藏 + 三维档案
+          // the stable primary affordances on SCP object pages.
+          value: this.articleMenuItems(),
+          maxCount: this.articleMenuMaxCount()
         }
       },
       style: createAppTitleBarStyle()

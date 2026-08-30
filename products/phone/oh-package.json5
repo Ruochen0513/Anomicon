@@ -12,6 +12,7 @@
     "article": "file:../../features/article",
     "library": "file:../../features/library",
     "settings": "file:../../features/settings",
-    "terminal": "file:../../features/terminal"
+    "terminal": "file:../../features/terminal",
+    "archive3d": "file:../../features/archive3d"
   }
 }

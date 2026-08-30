@@ -18,6 +18,7 @@ export class AppRoutes {
   static readonly SEARCH: string = 'search';
   static readonly LIBRARY_COLLECTION: string = 'libraryCollection';
   static readonly EXPLORE_COLLECTION: string = 'exploreCollection';
+  static readonly ARCHIVE_3D: string = 'archive3d';
 }
 
 export interface ExploreCollectionRouteParams {
@@ -26,6 +27,11 @@ export interface ExploreCollectionRouteParams {
 
 export interface LibraryCollectionRouteParams {
   mode: LibraryCollectionMode;
+}
+
+/** Strict, serializable payload for the independent three-dimensional view. */
+export interface Scp3DArchiveRouteParams {
+  readonly content: LibraryContentRef;
 }
 
 /** Unified article route payload. Every article route carries one content ref. */

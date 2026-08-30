@@ -15,8 +15,8 @@ export function ContentLicensePageBuilder() {
       new ContentLicenseLink('SCP Wiki', 'https://scp-wiki.wikidot.com/'),
       new ContentLicenseLink('SCP Wiki授权指南', 'https://scp-wiki.wikidot.com/licensing-guide'),
       new ContentLicenseLink(
-        '当前3D模型来源',
-        'https://github.com/Yni-Viar/scp-unity-assets/tree/7fda38944f51db7ee3aeb4d9e5ca821263153da5'
+        '三维概念资产许可（Apache-2.0）',
+        'https://www.apache.org/licenses/LICENSE-2.0'
       ),
       new ContentLicenseLink('CC BY-SA 3.0许可文本', 'https://creativecommons.org/licenses/by-sa/3.0/')
     ],

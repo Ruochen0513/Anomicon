@@ -1,0 +1,1 @@
+# The archive3d HAR exports stable serializable contract names.

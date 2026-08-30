@@ -5,7 +5,9 @@ import { ScpArticlePageBuilder } from '../ScpArticlePage';
 import { ScpSearchPageBuilder } from '../ScpSearchPage';
 import { LibraryCollectionPageBuilder } from '../LibraryCollectionPage';
 import { ExploreCollectionPageBuilder } from '../ExploreCollectionPage';
+import { Scp3DArchivePageBuilder } from '../Scp3DArchivePage';
 import { AppContainer } from '../../composition/AppContainer';
+import { resolveScp3DModelAsset } from 'archive3d';
 
 /**
  * Route adapters are deliberately boring: route_map only knows these product
@@ -39,7 +41,8 @@ export function ArticleRouteAdapter() {
     AppContainer.getInstance().createImagePreviewActions(),
     AppContainer.getInstance().createHapticFeedback(),
     AppContainer.getInstance().settings(),
-    AppContainer.getInstance().researchProfile()
+    AppContainer.getInstance().researchProfile(),
+    (contentId: string): boolean => resolveScp3DModelAsset(contentId) !== undefined
   );
 }
 
@@ -56,4 +59,9 @@ export function LibraryCollectionRouteAdapter() {
 @Builder
 export function ExploreCollectionRouteAdapter() {
   ExploreCollectionPageBuilder(AppContainer.getInstance().createExploreCollectionVM());
+}
+
+@Builder
+export function Scp3DArchiveRouteAdapter() {
+  Scp3DArchivePageBuilder();
 }

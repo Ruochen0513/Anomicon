@@ -34,6 +34,11 @@
       "name": "exploreCollection",
       "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
       "buildFunction": "ExploreCollectionRouteAdapter"
+    },
+    {
+      "name": "archive3d",
+      "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
+      "buildFunction": "Scp3DArchiveRouteAdapter"
     }
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "name": "archive3d",
+  "version": "1.0.0",
+  "description": "Verified SCP 3D asset manifest and contracts.",
+  "main": "Index.ets",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {}
+}
