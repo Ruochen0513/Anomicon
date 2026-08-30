@@ -1,0 +1,35 @@
+Anomicon bundled SCP model attribution
+
+The SCP-049, SCP-173 and SCP-939 mobile GLB derivatives are based on the
+reviewed assets in Yni-Viar/scp-unity-assets, fixed source revision:
+https://github.com/Yni-Viar/scp-unity-assets/tree/7fda38944f51db7ee3aeb4d9e5ca821263153da5
+SCP Foundation Wiki:
+https://scp-wiki.wikidot.com/
+上游 README（署名与再分发说明）：
+https://github.com/Yni-Viar/scp-unity-assets/blob/7fda38944f51db7ee3aeb4d9e5ca821263153da5/README.md
+上游许可证文件：
+https://github.com/Yni-Viar/scp-unity-assets/blob/7fda38944f51db7ee3aeb4d9e5ca821263153da5/LICENSE.CCBYSA3
+
+SCP-049 / SCP-173:
+  Aruspice (model/textures), Shakles (rig/animation), PixelPuffin (concept)
+  SCP-049 article: Gabriel Jade; rewrite: djkaktus and Gabriel Jade
+  https://scp-wiki.wikidot.com/scp-049
+  SCP-173 article: Moto42
+  https://scp-wiki.wikidot.com/scp-173
+SCP-939:
+  Apocryphos (model), Shadowscale (textures), Shakles (rig/animation)
+  SCP-939 article: Adam Smascher and EchoFourDelta
+  https://scp-wiki.wikidot.com/scp-939
+
+License: CC BY-SA 3.0
+https://creativecommons.org/licenses/by-sa/3.0/
+
+Anomicon mobile processing: animations removed, embedded textures constrained
+to 1024px, unused data cleaned, and an AnomiconInteractivePivot node added for
+the mobile viewer. The shipped files are visual reconstructions, not official
+SCP Foundation models.
+
+SCP-173 is the NEO/version-2 redesign asset. The SCP Foundation licensing
+guide still contains additional guidance for the former Untitled 2004
+sculpture likeness; review that guide before any commercial distribution:
+https://scp-foundation.net/licensing-guide

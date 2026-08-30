@@ -7,7 +7,7 @@ import { LibraryCollectionPageBuilder } from '../LibraryCollectionPage';
 import { ExploreCollectionPageBuilder } from '../ExploreCollectionPage';
 import { Scp3DArchivePageBuilder } from '../Scp3DArchivePage';
 import { AppContainer } from '../../composition/AppContainer';
-import { resolveScp3DModelAsset } from 'archive3d';
+import { hasScp3DModel } from 'archive3d';
 
 /**
  * Route adapters are deliberately boring: route_map only knows these product
@@ -42,7 +42,7 @@ export function ArticleRouteAdapter() {
     AppContainer.getInstance().createHapticFeedback(),
     AppContainer.getInstance().settings(),
     AppContainer.getInstance().researchProfile(),
-    (contentId: string): boolean => resolveScp3DModelAsset(contentId) !== undefined
+    (contentId: string): boolean => hasScp3DModel(contentId)
   );
 }
 

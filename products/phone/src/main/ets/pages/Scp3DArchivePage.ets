@@ -12,6 +12,7 @@ import {
   pageContentTop
 } from 'anomiconbasic';
 import {
+  Scp3DAssetDelivery,
   Scp3DModelAsset,
   resolveScp3DModelAsset
 } from 'archive3d';
@@ -24,8 +25,6 @@ import {
 } from '../composition/Archive3DSceneLoader';
 
 const VIEWER_HEIGHT: number = 388;
-const MIN_MODEL_SCALE: number = 0.72;
-const MAX_MODEL_SCALE: number = 1.65;
 const ROTATION_SENSITIVITY_X: number = 0.008;
 const ROTATION_SENSITIVITY_Y: number = 0.006;
 const MIN_PITCH: number = -1.05;
@@ -71,7 +70,6 @@ struct Scp3DArchivePage {
   // state changes never look like a dynamic scene-option mutation.
   private sceneOptions: SceneOptions | undefined = undefined;
   @Local private errorMessage: string = '';
-  @Local private interactionHint: string = '单指旋转 · 双指缩放';
   @Local private autoRotate: boolean = false;
   @Local private creditsVisible: boolean = false;
   @Local private yaw: number = 0;
@@ -116,14 +114,13 @@ struct Scp3DArchivePage {
     const content = route.content;
     const resolved = resolveScp3DModelAsset(content.id, content.title);
     if (resolved === undefined) {
-      this.errorMessage = '此 SCP 对象暂未配置可审计的三维模型。';
+      this.errorMessage = '此 SCP 对象暂无三维模型。';
       return;
     }
     this.routeResolved = true;
     this.contentId = content.id.toUpperCase();
     this.title = content.title.trim().length > 0 ? content.title : this.contentId;
     this.asset = resolved;
-    this.interactionHint = '单指旋转 · 双指缩放';
     this.requestLoadIfNeeded();
   }
 
@@ -140,7 +137,6 @@ struct Scp3DArchivePage {
     this.releaseScene();
     this.loading = true;
     this.errorMessage = '';
-    this.interactionHint = '正在准备三维场景…';
     this.loadSceneAsync(asset, generation);
   }
 
@@ -154,7 +150,7 @@ struct Scp3DArchivePage {
       this.sceneHandle = handle;
       this.yaw = 0;
       this.pitch = 0;
-      this.modelScale = 1;
+      this.modelScale = asset.initialScale;
       this.sceneOptions = {
         scene: handle.scene,
         modelType: ModelType.SURFACE
@@ -162,7 +158,6 @@ struct Scp3DArchivePage {
       this.sceneReady = true;
       this.loading = false;
       this.errorMessage = '';
-      this.interactionHint = '单指旋转 · 双指缩放';
       this.applyModelTransform();
       this.requestRender();
     } catch (_error) {
@@ -172,7 +167,6 @@ struct Scp3DArchivePage {
       this.loading = false;
       this.sceneReady = false;
       this.errorMessage = '三维模型暂时无法加载，请稍后重试。';
-      this.interactionHint = '模型不可用';
     }
   }
 
@@ -264,17 +258,16 @@ struct Scp3DArchivePage {
   private resetView(): void {
     this.yaw = 0;
     this.pitch = 0;
-    this.modelScale = 1;
-    this.interactionHint = '已复位 · 单指旋转 · 双指缩放';
+    this.modelScale = this.asset?.initialScale ?? 1;
     this.applyModelTransform();
   }
 
-  private changeZoom(factor: number): void {
-    if (!this.sceneReady) {
-      return;
-    }
-    this.modelScale = this.clamp(this.modelScale * factor, MIN_MODEL_SCALE, MAX_MODEL_SCALE);
-    this.applyModelTransform();
+  private minimumModelScale(): number {
+    return this.asset?.minimumScale ?? 0.72;
+  }
+
+  private maximumModelScale(): number {
+    return this.asset?.maximumScale ?? 1.65;
   }
 
   private beginPan(): void {
@@ -285,7 +278,6 @@ struct Scp3DArchivePage {
     this.autoRotate = false;
     this.panStartYaw = this.yaw;
     this.panStartPitch = this.pitch;
-    this.interactionHint = '拖拽中…';
   }
 
   private updatePan(event: GestureEvent): void {
@@ -301,12 +293,6 @@ struct Scp3DArchivePage {
     this.applyModelTransform();
   }
 
-  private endPan(): void {
-    if (this.sceneReady) {
-      this.interactionHint = '单指旋转 · 双指缩放';
-    }
-  }
-
   private beginPinch(): void {
     if (!this.sceneReady) {
       return;
@@ -314,7 +300,6 @@ struct Scp3DArchivePage {
     this.stopAutoRotate();
     this.autoRotate = false;
     this.pinchStartScale = this.modelScale;
-    this.interactionHint = '缩放中…';
   }
 
   private updatePinch(event: GestureEvent): void {
@@ -323,16 +308,10 @@ struct Scp3DArchivePage {
     }
     this.modelScale = this.clamp(
       this.pinchStartScale * event.scale,
-      MIN_MODEL_SCALE,
-      MAX_MODEL_SCALE
+      this.minimumModelScale(),
+      this.maximumModelScale()
     );
     this.applyModelTransform();
-  }
-
-  private endPinch(): void {
-    if (this.sceneReady) {
-      this.interactionHint = '单指旋转 · 双指缩放';
-    }
   }
 
   private toggleAutoRotate(): void {
@@ -341,10 +320,8 @@ struct Scp3DArchivePage {
     }
     this.autoRotate = !this.autoRotate;
     if (this.autoRotate) {
-      this.interactionHint = '自动旋转中 · 触摸可接管';
       this.startAutoRotate();
     } else {
-      this.interactionHint = '单指旋转 · 双指缩放';
       this.stopAutoRotate();
     }
   }
@@ -398,13 +375,18 @@ struct Scp3DArchivePage {
   }
 
   private archiveStatusLabel(): string {
+    if (this.asset === undefined) {
+      return this.errorMessage.length > 0 ? '未配置' : '准备中';
+    }
+    const deliveryLabel = this.asset?.delivery === Scp3DAssetDelivery.ON_DEMAND ?
+      '按需下载' : '随应用内置';
     if (this.loading) {
-      return 'OFFLINE · LOADING';
+      return `${deliveryLabel} · 载入中`;
     }
     if (this.errorMessage.length > 0) {
-      return 'OFFLINE · UNAVAILABLE';
+      return `${deliveryLabel} · 不可用`;
     }
-    return 'OFFLINE · READY';
+    return `${deliveryLabel} · 就绪`;
   }
 
   @Builder
@@ -432,10 +414,6 @@ struct Scp3DArchivePage {
         .fontColor($r('sys.color.font_secondary'))
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis });
-      Text('独立三维档案空间 · 不阻塞正文阅读 · 资源随应用离线提供')
-        .fontSize(AppTypography.BODY_S)
-        .fontColor($r('sys.color.font_tertiary'))
-        .lineHeightMultiple(AppTypography.UI_PARAGRAPH_LINE_HEIGHT);
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start);
@@ -443,7 +421,7 @@ struct Scp3DArchivePage {
 
   @Builder
   private stageBadge() {
-    Row({ space: 8 }) {
+    Row() {
       Text('SCP OBJECT')
         .fontSize(10)
         .fontWeight(FontWeight.Bold)
@@ -451,12 +429,6 @@ struct Scp3DArchivePage {
         .padding({ left: 10, right: 10, top: 6, bottom: 6 })
         .backgroundColor('#314F86')
         .borderRadius(8);
-      Text(this.interactionHint)
-        .fontSize(11)
-        .fontColor('#B2C3E4')
-        .layoutWeight(1)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis });
     }
     .width('100%')
     .padding({ left: 16, right: 16, top: 14 });
@@ -472,20 +444,6 @@ struct Scp3DArchivePage {
         .backgroundColor('#263B64')
         .onClick(() => this.toggleAutoRotate());
       Blank().layoutWeight(1);
-      Button('−', { stateEffect: false })
-        .width(38)
-        .height(36)
-        .fontSize(20)
-        .fontColor('#DCE8FF')
-        .backgroundColor('#1C2C4B')
-        .onClick(() => this.changeZoom(0.90));
-      Button('+', { stateEffect: false })
-        .width(38)
-        .height(36)
-        .fontSize(18)
-        .fontColor('#DCE8FF')
-        .backgroundColor('#1C2C4B')
-        .onClick(() => this.changeZoom(1.10));
       Button('复位', { stateEffect: false })
         .height(36)
         .fontSize(12)
@@ -495,9 +453,9 @@ struct Scp3DArchivePage {
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 10, bottom: 12 })
-    .backgroundColor('#D90D1728')
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
     .borderRadius(18)
-    .align(Alignment.Bottom);
+    .accessibilityText('三维模型控制：自动旋转与复位');
   }
 
   @Builder
@@ -507,12 +465,9 @@ struct Scp3DArchivePage {
         .width(34)
         .height(34)
         .color('#8FB4FF');
-      Text('正在载入收容场景')
+      Text('正在载入三维场景')
         .fontSize(AppTypography.SUBTITLE_S)
         .fontColor('#EAF0FF');
-      Text(this.asset?.isConceptual === true ? '轻量概念资产 · 无外部依赖' : '正在读取已验证资源')
-        .fontSize(AppTypography.BODY_S)
-        .fontColor('#9DACC8');
     }
     .width('100%')
     .height('100%')
@@ -579,8 +534,6 @@ struct Scp3DArchivePage {
           PanGesture({ fingers: 1, direction: PanDirection.All, distance: 3 })
             .onActionStart(() => this.beginPan())
             .onActionUpdate((event: GestureEvent) => this.updatePan(event))
-            .onActionEnd(() => this.endPan())
-            .onActionCancel(() => this.endPan())
         )
         .gesture(
           // HarmonyOS uses 5vp as the default/minimum useful pinch threshold;
@@ -588,9 +541,9 @@ struct Scp3DArchivePage {
           PinchGesture({ fingers: 2, distance: 5 })
             .onActionStart(() => this.beginPinch())
             .onActionUpdate((event: GestureEvent) => this.updatePinch(event))
-            .onActionEnd(() => this.endPinch())
-            .onActionCancel(() => this.endPinch())
         )
+        // Keep the gesture description in the accessibility tree while
+        // leaving the visual stage free of instructional copy.
         .accessibilityText(`${this.contentId} 三维模型，可单指旋转、双指缩放`)
         .hitTestBehavior(HitTestMode.Default);
 
@@ -599,9 +552,6 @@ struct Scp3DArchivePage {
         this.loadingOverlay();
       } else if (this.errorMessage.length > 0) {
         this.errorOverlay();
-      }
-      if (!this.loading && this.errorMessage.length === 0 && this.sceneReady) {
-        this.stageControls();
       }
       if (this.creditsVisible) {
         this.creditsOverlay();
@@ -618,44 +568,70 @@ struct Scp3DArchivePage {
   @Builder
   private creditsOverlay() {
     if (this.asset !== undefined) {
-      Column({ space: 12 }) {
-        Row() {
-          Text('资源来源与许可')
-            .fontSize(AppTypography.SUBTITLE_M)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#F2F6FF')
-            .layoutWeight(1);
-          Button('关闭', { stateEffect: false })
-            .height(32)
-            .fontSize(12)
+      Scroll() {
+        Column({ space: 12 }) {
+          Row() {
+            Text('资源来源与许可')
+              .fontSize(AppTypography.SUBTITLE_M)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#F2F6FF')
+              .layoutWeight(1);
+            Button('关闭', { stateEffect: false })
+              .height(32)
+              .fontSize(12)
+              .fontColor('#DCE8FF')
+              .backgroundColor('#263B64')
+              .onClick(() => this.creditsVisible = false);
+          }
+          .width('100%');
+          Text(this.asset.attribution)
+            .fontSize(AppTypography.BODY_S)
             .fontColor('#DCE8FF')
-            .backgroundColor('#263B64')
-            .onClick(() => this.creditsVisible = false);
+            .width('100%')
+            .lineHeightMultiple(AppTypography.UI_PARAGRAPH_LINE_HEIGHT);
+          Text(this.asset.contentAttribution)
+            .fontSize(AppTypography.BODY_S)
+            .fontColor('#DCE8FF')
+            .width('100%')
+            .lineHeightMultiple(AppTypography.UI_PARAGRAPH_LINE_HEIGHT);
+          Text(`许可：${this.asset.license}`)
+            .fontSize(AppTypography.BODY_S)
+            .fontColor('#AAB9D3')
+            .width('100%');
+          Hyperlink(this.asset.licenseUrl, '查看许可文本')
+            .color('#9FC0FF')
+            .width('100%');
+          Text(this.asset.sourceLabel)
+            .fontSize(AppTypography.CAPTION_L)
+            .fontColor('#AAB9D3')
+            .width('100%')
+            .lineHeightMultiple(AppTypography.UI_PARAGRAPH_LINE_HEIGHT);
+          Hyperlink(this.asset.sourceUrl, '查看模型来源')
+            .color('#9FC0FF')
+            .width('100%');
+          Hyperlink(this.asset.contentSourceUrl, '查看条目来源')
+            .color('#9FC0FF')
+            .width('100%');
+          Text(this.asset.notice)
+            .fontSize(AppTypography.CAPTION_L)
+            .fontColor('#F0C77A')
+            .width('100%')
+            .lineHeightMultiple(AppTypography.UI_PARAGRAPH_LINE_HEIGHT);
+          Text(this.asset.modificationNote)
+            .fontSize(AppTypography.CAPTION_L)
+            .fontColor('#AAB9D3')
+            .width('100%')
+            .lineHeightMultiple(AppTypography.UI_PARAGRAPH_LINE_HEIGHT);
         }
         .width('100%');
-        Text(this.asset.attribution)
-          .fontSize(AppTypography.BODY_S)
-          .fontColor('#DCE8FF')
-          .width('100%')
-          .lineHeightMultiple(AppTypography.UI_PARAGRAPH_LINE_HEIGHT);
-        Text(`许可：${this.asset.license}`)
-          .fontSize(AppTypography.BODY_S)
-          .fontColor('#AAB9D3')
-          .width('100%');
-        Hyperlink(this.asset.licenseUrl, '查看许可文本')
-          .color('#9FC0FF')
-          .width('100%');
-        Text('模型为 Anomicon 自制概念资产，不代表对 SCP 原始实体的复原或官方视觉设定。')
-          .fontSize(AppTypography.CAPTION_L)
-          .fontColor('#F0C77A')
-          .width('100%')
-          .lineHeightMultiple(AppTypography.UI_PARAGRAPH_LINE_HEIGHT);
       }
       .width('92%')
+      .height('92%')
       .padding(18)
       .backgroundColor('#F01A2942')
       .borderRadius(22)
       .align(Alignment.Center)
+      .scrollBar(BarState.Off)
       .hitTestBehavior(HitTestMode.Default);
     }
   }
@@ -687,7 +663,7 @@ struct Scp3DArchivePage {
               .fontSize(AppTypography.SUBTITLE_M)
               .fontWeight(FontWeight.Bold)
               .fontColor($r('sys.color.font'));
-            Text('可审计的离线资源 · 进入即用')
+            Text(`对象等级 · ${this.asset.objectClass}`)
               .fontSize(AppTypography.CAPTION_L)
               .fontColor($r('sys.color.font_tertiary'));
           }
@@ -712,7 +688,8 @@ struct Scp3DArchivePage {
         this.metadataRow('资源格式', this.asset.format.toUpperCase());
         this.metadataRow('资源大小', this.assetSizeLabel());
         this.metadataRow('模型预算', `${this.asset.estimatedTriangleCount} triangles`);
-        this.metadataRow('交付方式', '应用内置 · 无网络依赖');
+        this.metadataRow('交付方式', this.asset.delivery === Scp3DAssetDelivery.ON_DEMAND ?
+          '用户按需下载' : '随应用内置');
         this.metadataRow('资源版本', this.asset.version);
       }
       .width('100%')
@@ -722,39 +699,19 @@ struct Scp3DArchivePage {
     }
   }
 
-  @Builder
-  private performanceNote() {
-    Column({ space: 7 }) {
-      Row({ space: 8 }) {
-        SymbolGlyph($r('sys.symbol.performance'))
-          .fontSize(18)
-          .fontColor([$r('sys.color.icon_secondary')]);
-        Text('为移动端保留余量')
-          .fontSize(AppTypography.SUBTITLE_S)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('sys.color.font'));
-      }
-      Text('模型只在本页可见且处于活动状态时加载；离开页面立即释放 Scene。默认关闭连续渲染、MSAA 与阴影，手势更新按帧合并。')
-        .fontSize(AppTypography.BODY_S)
-        .fontColor($r('sys.color.font_secondary'))
-        .lineHeightMultiple(AppTypography.UI_PARAGRAPH_LINE_HEIGHT)
-        .width('100%');
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-    .padding(16)
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius(16);
-  }
-
   build() {
     HdsNavDestination() {
       Scroll(this.scroller) {
         Column({ space: 16 }) {
           this.pageHeader();
           this.viewerStage();
+          if (!this.loading && this.errorMessage.length === 0 && this.sceneReady) {
+            // Keep controls in normal document flow below the observation
+            // surface. This is more reliable than aligning a child inside a
+            // Component3D Stack and leaves the gesture surface unobstructed.
+            this.stageControls();
+          }
           this.archiveInfo();
-          this.performanceNote();
         }
         .width('100%')
         .constraintSize({ maxWidth: 640 })

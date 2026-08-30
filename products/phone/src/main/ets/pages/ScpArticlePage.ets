@@ -478,11 +478,13 @@ struct ScpArticlePage {
     AppNavigationCoordinator.push(this.pageStack, AppRoutes.ARCHIVE_3D, params);
   }
 
+  /**
+   * HDS counts the automatically generated More affordance in maxCount.
+   * Reserve one slot for More so SCP objects expose 收藏 + 三维档案 on the
+   * title bar, while the browser/settings actions stay in that overflow menu.
+   */
   private articleMenuMaxCount(): number {
-    // Reserve the two primary slots only when the SCP-specific archive action
-    // is actually present; tale/wiki readers keep the original three-action
-    // title bar and avoid an unrelated regression.
-    return this.canOpenArchive3D() ? 2 : 3;
+    return this.canOpenArchive3D() ? 3 : 2;
   }
 
   private articleMenuItems(): HdsNavigationMenuItemOptions[] {
@@ -721,9 +723,8 @@ struct ScpArticlePage {
         },
         backIcon: { label: '返回', componentId: 'articleBackButton' },
         menu: {
-          // HDS keeps the first two actions in the title bar and moves the
-          // remaining article actions into More. This makes 收藏 + 三维档案
-          // the stable primary affordances on SCP object pages.
+          // HDS 官方规则中自动生成的“更多”也占一个菜单位：有模型时
+          // maxCount=3 才能外露“收藏 + 三维档案 + 更多”。
           value: this.articleMenuItems(),
           maxCount: this.articleMenuMaxCount()
         }

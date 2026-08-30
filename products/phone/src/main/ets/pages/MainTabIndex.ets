@@ -60,6 +60,7 @@ import { HapticFeedbackPort } from 'anomiconbasic';
 import {
   SettingsViewModel
 } from 'settings';
+import { hasScp3DModel } from 'archive3d';
 
 @ComponentV2
 export struct MainTabIndex {
@@ -221,7 +222,8 @@ export struct MainTabIndex {
                   this.catalogViewModel.loadPreview(itemId, onRefreshed, forceRefresh),
                 onOpenArticle: (itemId: string, name: string) => this.openContent(
                   createLibraryContentRef(LibraryContentKind.SCP, itemId, name)
-                )
+                ),
+                has3DModel: (itemId: string): boolean => hasScp3DModel(itemId)
               })
             } else if (item.id === HomeTabId.STORY) {
               TaleList({

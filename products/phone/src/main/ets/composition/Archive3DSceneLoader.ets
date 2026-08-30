@@ -10,14 +10,13 @@ import {
   Scene
 } from '@kit.ArkGraphics3D';
 import {
+  Scp3DAssetDelivery,
   Scp3DAssetFormat,
   Scp3DAssetSource,
   Scp3DModelAsset
 } from 'archive3d';
 
 const INTERACTION_ROOT_NAME: string = 'AnomiconInteractivePivot';
-const MODEL_CAMERA_DISTANCE: number = 4.2;
-const MODEL_FIELD_OF_VIEW: number = Math.PI / 3;
 
 /** Native scene ownership stays in the phone product, never in a HAR/VM. */
 export interface Archive3DSceneHandle {
@@ -73,8 +72,14 @@ export async function loadArchive3DScene(asset: Scp3DModelAsset): Promise<Archiv
   // manifest row is deliberately mapped here instead of interpolating a path.
   let scene: Scene;
   switch (asset.resourcePath) {
-    case 'models/containment-artifact.gltf':
-      scene = await Scene.load($rawfile('models/containment-artifact.gltf'));
+    case 'models/scp-049.glb':
+      scene = await Scene.load($rawfile('models/scp-049.glb'));
+      break;
+    case 'models/scp-173.glb':
+      scene = await Scene.load($rawfile('models/scp-173.glb'));
+      break;
+    case 'models/scp-939.glb':
+      scene = await Scene.load($rawfile('models/scp-939.glb'));
       break;
     default:
       throw new Error('三维模型资源尚未注册');
@@ -95,10 +100,10 @@ export async function loadArchive3DScene(asset: Scp3DModelAsset): Promise<Archiv
     camera.position = {
       x: target.x,
       y: target.y,
-      z: target.z + MODEL_CAMERA_DISTANCE
+      z: target.z + asset.cameraDistance
     };
     camera.rotation = identityQuaternion();
-    camera.fov = MODEL_FIELD_OF_VIEW;
+    camera.fov = asset.fieldOfView;
     camera.nearPlane = 0.05;
     camera.farPlane = 100;
     camera.clearColor = { r: 0.018, g: 0.027, b: 0.052, a: 1 };
@@ -151,6 +156,9 @@ export async function loadArchive3DScene(asset: Scp3DModelAsset): Promise<Archiv
 function validateBundledAsset(asset: Scp3DModelAsset): void {
   if (asset.source !== Scp3DAssetSource.BUNDLED) {
     throw new Error('三维模型必须来自应用内置资源');
+  }
+  if (asset.delivery !== Scp3DAssetDelivery.BUNDLED) {
+    throw new Error('按需下载资源尚未安装');
   }
   if (asset.format !== Scp3DAssetFormat.GLTF && asset.format !== Scp3DAssetFormat.GLB) {
     throw new Error('当前设备仅支持 glTF/GLB 三维模型');

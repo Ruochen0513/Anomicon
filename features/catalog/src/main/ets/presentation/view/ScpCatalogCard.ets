@@ -23,6 +23,7 @@ export struct ScpCatalogCard {
   @Require @Param onOpen: (itemId: string, name: string) => void;
   @Require @Param loadPreview: CatalogPreviewLoader;
   @Require @Param onPreviewLoaded: (entry: ScpCatalogEntry, info: CatalogPreview) => boolean;
+  @Require @Param show3DModel: boolean;
   @Param refreshToken: number = 0;
 
   private mounted: boolean = false;
@@ -197,6 +198,23 @@ export struct ScpCatalogCard {
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
+          if (this.show3DModel) {
+            Row({ space: 3 }) {
+              SymbolGlyph($r('sys.symbol.square_stack_3d'))
+                .fontSize(12)
+                .fontColor([$r('sys.color.icon_secondary')]);
+              Text('3D')
+                .fontSize(10)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('sys.color.font_secondary'));
+            }
+            .height(20)
+            .padding({ left: 6, right: 6 })
+            .backgroundColor($r('sys.color.comp_background_tertiary'))
+            .borderRadius(6)
+            .hitTestBehavior(HitTestMode.None)
+            .accessibilityText('含三维档案');
+          }
         }
         .width('100%')
         .height(22)
