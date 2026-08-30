@@ -1,0 +1,17 @@
+{
+  "name": "phone",
+  "version": "1.0.0",
+  "description": "Anomicon phone product Entry HAP.",
+  "main": "",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "anomiconbasic": "file:../../common/anomiconbasic",
+    "catalog": "file:../../features/catalog",
+    "explore": "file:../../features/explore",
+    "article": "file:../../features/article",
+    "library": "file:../../features/library",
+    "settings": "file:../../features/settings",
+    "terminal": "file:../../features/terminal"
+  }
+}

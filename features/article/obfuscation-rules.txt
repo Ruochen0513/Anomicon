@@ -1,0 +1,1 @@
+# Article HAR obfuscation rules are intentionally conservative during migration.

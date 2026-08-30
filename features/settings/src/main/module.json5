@@ -1,0 +1,8 @@
+{
+  "module": {
+    "name": "settings",
+    "type": "har",
+    "description": "$string:settings_module_desc",
+    "deviceTypes": ["phone", "tablet", "2in1", "tv", "wearable"]
+  }
+}

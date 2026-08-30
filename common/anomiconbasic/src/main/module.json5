@@ -1,0 +1,14 @@
+{
+  "module": {
+    "name": "anomiconbasic",
+    "type": "har",
+    "description": "$string:anomiconbasic_module_desc",
+    "deviceTypes": [
+      "phone",
+      "tablet",
+      "2in1",
+      "tv",
+      "wearable"
+    ]
+  }
+}

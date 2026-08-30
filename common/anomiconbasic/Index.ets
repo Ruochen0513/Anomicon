@@ -1,0 +1,33 @@
+// Explicit public entry point for the common HAR. Keeping the list here
+// prevents data/platform implementations from being exported accidentally by
+// a future file move.
+export {
+  ViewModelLoadState,
+  ViewModelLifecycle,
+  ViewModelErrorInfo,
+  ViewModelSnapshot,
+  AppTypography,
+  CACHE_FRESH_DURATION_MS,
+  AppInfoPort,
+  HapticFeedbackPort,
+  RuntimeClockPort,
+  IdGeneratorPort,
+  AppInfoAdapter,
+  HapticFeedbackAdapter,
+  RuntimeClockAdapter,
+  IdGeneratorAdapter,
+  ExternalUrlPolicy,
+  AtomicTextCacheFileStore,
+  ANOMICON_DATABASE_NAME,
+  ImagePreviewActions,
+  objectClassColor,
+  PHONE_PAGE_MARGIN,
+  HDS_TITLE_BAR_HEIGHT_MINI,
+  updateWindowAvoidArea,
+  pageContentTop,
+  immersiveMaterialSupported,
+  createAppTitleBarStyle,
+  AppBodyText,
+  ReadingBodyText,
+  SkeletonBlock
+} from './src/main/ets/Index';

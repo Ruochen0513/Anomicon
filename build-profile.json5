@@ -1,0 +1,98 @@
+{
+  "app": {
+    "products": [
+      {
+        "name": "default",
+        "targetSdkVersion": "26.0.0",
+        "compatibleSdkVersion": "26.0.0",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "anomiconbasic",
+      "srcPath": "./common/anomiconbasic"
+    },
+    {
+      "name": "catalog",
+      "srcPath": "./features/catalog",
+      "targets": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "explore",
+      "srcPath": "./features/explore",
+      "targets": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "article",
+      "srcPath": "./features/article",
+      "targets": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "library",
+      "srcPath": "./features/library",
+      "targets": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "srcPath": "./features/settings",
+      "targets": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "terminal",
+      "srcPath": "./features/terminal",
+      "targets": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "name": "phone",
+      "srcPath": "./products/phone",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+export { SettingsViewModel } from './SettingsViewModel';

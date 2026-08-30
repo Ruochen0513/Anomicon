@@ -1,0 +1,8 @@
+{
+  "module": {
+    "name": "explore",
+    "type": "har",
+    "description": "$string:explore_module_desc",
+    "deviceTypes": ["phone", "tablet", "2in1", "tv", "wearable"]
+  }
+}

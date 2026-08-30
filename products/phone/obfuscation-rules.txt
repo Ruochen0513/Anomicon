@@ -1,0 +1,3 @@
+# Product-specific obfuscation rules.
+# Keep the Entry HAP rule file explicit so release builds remain reproducible.
+# Feature HAR consumer rules are applied by their own module build profiles.

@@ -1,0 +1,11 @@
+{
+  "name": "settings",
+  "version": "1.0.0",
+  "description": "Settings feature HAR.",
+  "main": "Index.ets",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "anomiconbasic": "file:../../common/anomiconbasic"
+  }
+}

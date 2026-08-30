@@ -1,0 +1,8 @@
+{
+  "module": {
+    "name": "article",
+    "type": "har",
+    "description": "$string:article_module_desc",
+    "deviceTypes": ["phone", "tablet", "2in1", "tv", "wearable"]
+  }
+}

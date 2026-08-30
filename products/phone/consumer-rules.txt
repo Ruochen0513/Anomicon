@@ -1,0 +1,2 @@
+# The phone product is an Entry HAP and does not publish consumer rules.
+# This marker keeps the product module layout consistent with the other modules.

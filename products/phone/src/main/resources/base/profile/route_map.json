@@ -1,0 +1,39 @@
+{
+  "routerMap": [
+    {
+      "name": "settings",
+      "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
+      "buildFunction": "SettingsRouteAdapter"
+    },
+    {
+      "name": "about",
+      "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
+      "buildFunction": "AboutRouteAdapter"
+    },
+    {
+      "name": "contentLicense",
+      "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
+      "buildFunction": "ContentLicenseRouteAdapter"
+    },
+    {
+      "name": "article",
+      "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
+      "buildFunction": "ArticleRouteAdapter"
+    },
+    {
+      "name": "search",
+      "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
+      "buildFunction": "SearchRouteAdapter"
+    },
+    {
+      "name": "libraryCollection",
+      "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
+      "buildFunction": "LibraryCollectionRouteAdapter"
+    },
+    {
+      "name": "exploreCollection",
+      "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
+      "buildFunction": "ExploreCollectionRouteAdapter"
+    }
+  ]
+}

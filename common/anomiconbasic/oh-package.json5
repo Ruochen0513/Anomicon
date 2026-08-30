@@ -1,0 +1,9 @@
+{
+  "name": "anomiconbasic",
+  "version": "1.0.0",
+  "description": "Shared foundation and platform contracts for Anomicon features.",
+  "main": "Index.ets",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {}
+}

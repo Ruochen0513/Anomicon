@@ -1,0 +1,11 @@
+{
+  "name": "catalog",
+  "version": "1.0.0",
+  "description": "Catalog and tale feature HAR.",
+  "main": "Index.ets",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "anomiconbasic": "file:../../common/anomiconbasic"
+  }
+}

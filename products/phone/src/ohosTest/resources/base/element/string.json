@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_test_desc",
+      "value": "Anomicon phone Hypium tests"
+    },
+    {
+      "name": "TestAbility_desc",
+      "value": "Anomicon phone test ability"
+    },
+    {
+      "name": "TestAbility_label",
+      "value": "Anomicon Phone Tests"
+    }
+  ]
+}

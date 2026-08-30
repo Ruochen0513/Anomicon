@@ -1,0 +1,12 @@
+{
+  "name": "explore",
+  "version": "1.0.0",
+  "description": "Explore and recommendation feature HAR.",
+  "main": "Index.ets",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "anomiconbasic": "file:../../common/anomiconbasic",
+    "library": "file:../library"
+  }
+}

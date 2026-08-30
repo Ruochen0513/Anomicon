@@ -1,0 +1,1 @@
+# Common HAR obfuscation rules are intentionally kept conservative during migration.
