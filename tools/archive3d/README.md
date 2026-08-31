@@ -1,6 +1,6 @@
 # Archive 3D asset preparation
 
-`prepare_archive_glb.py` turns an upstream glTF 2.0 binary into the static,
+`prepare_archive_glb.py` turns an upstream [glTF 2.0](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html) binary into the static,
 self-contained GLB consumed by Anomicon's ArkGraphics3D viewer. It is a
 build-time tool; it never edits the source file or files under
 `products/phone/src/main/resources` unless that path is explicitly supplied as
@@ -18,6 +18,43 @@ the destination.
 
 The script uses only the Python standard library for GLB parsing and animation
 sampling. It does not require Blender, Assimp, gltf-transform, or a GPU.
+
+## Batch inspection
+
+`inspect_archive_batch.py` removes the repetitive part of adding a remote
+candidate. It can recursively enumerate a fixed GitHub revision or scan a
+local directory, download candidates in parallel, and emit one deterministic
+JSON report containing:
+
+* GLB 2.0 validity, SHA-256 and the source tree byte length;
+* external buffer/image dependencies and unsupported compression extensions;
+* mesh, material, node and triangle estimates;
+* embedded image MIME types, dimensions and byte sizes;
+* authored POSITION bounds and every animation name/duration; and
+* a review status (`eligible_candidate`, `needs_pose_review`,
+  `needs_budget_review`, `reject_*` or `skipped_*`).
+
+Remote scans require a full 40-character commit SHA. This makes every report
+reproducible and prevents a moving branch from silently changing a download:
+
+```sh
+python3 tools/archive3d/inspect_archive_batch.py \
+  --repo Yni-Viar/scp-assets \
+  --ref 1265487d1978b60398ab71f366bc5a1ba4ce1d0d \
+  --prefix GFX/SCP-CB \
+  --prefix GFX/By_Pop_Pop_Icard/Items \
+  --workers 6 \
+  --output /tmp/scp-assets-candidates.json
+```
+
+The tool follows the [GitHub Trees API](https://docs.github.com/en/rest/git/trees)'s
+recursive listing and falls back to a subtree walk when the API reports a
+truncated response. The API documents a 100,000-entry/7 MB recursive response
+limit; narrow `--prefix` values are still recommended for large repositories.
+The report is a review artifact only: it
+never edits `Scp3DModelAsset.ets`, copies files into rawfiles, or invents
+license, object-class, warning or pose metadata. Only after a candidate has
+passed that review should its row be added to the manifest.
 
 ## Basic command
 
