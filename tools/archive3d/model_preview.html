@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Anomicon Archive3D Preview</title>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <style>
+      html, body { width: 100%; height: 100%; margin: 0; background: #111827; color: #e5e7eb; }
+      body { display: grid; grid-template-rows: auto 1fr; font: 14px system-ui, sans-serif; }
+      header { padding: 10px 14px; background: #0b1220; }
+      model-viewer { width: 100%; height: 100%; background: radial-gradient(circle, #26334d, #111827 70%); }
+    </style>
+  </head>
+  <body>
+    <header id="label">Archive3D pose preview</header>
+    <model-viewer id="viewer" camera-controls interaction-prompt="none" shadow-intensity="0.7" exposure="1.15"></model-viewer>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const model = params.get('model');
+      const viewer = document.getElementById('viewer');
+      const label = document.getElementById('label');
+      if (model) {
+        viewer.src = model;
+        label.textContent = model;
+      } else {
+        label.textContent = 'Use ?model=/path/to/model.glb';
+      }
+    </script>
+  </body>
+</html>

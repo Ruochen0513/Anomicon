@@ -80,7 +80,8 @@ export struct MainTabIndex {
   @Local private taleFilterState: TaleFilterState = new TaleFilterState();
   @Local private tabsViewModel: TabsViewModel = new TabsViewModel({
     onCatalogSearch: () => this.openCatalogSearchMenu(),
-    onOpenSettings: () => this.openSettings()
+    onOpenSettings: () => this.openSettings(),
+    onOpenArchive3DGallery: () => this.openArchive3DGallery()
   });
 
   private tabsController: HdsTabsController = new HdsTabsController();
@@ -118,6 +119,11 @@ export struct MainTabIndex {
   private openSettings(): void {
     this.hapticService.playSelection(this.settings.hapticEnabled);
     AppNavigationCoordinator.push(this.pageStack, AppRoutes.SETTINGS);
+  }
+
+  private openArchive3DGallery(): void {
+    this.hapticService.playSelection(this.settings.hapticEnabled);
+    AppNavigationCoordinator.push(this.pageStack, AppRoutes.ARCHIVE_3D_GALLERY);
   }
 
   private openContent(content: LibraryContentRef): void {

@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { AppStorageV2 } from '@kit.ArkUI';
 import { ImagePreviewActions } from 'anomiconbasic';
+import { RequestAgentBackgroundDownloadAdapter } from 'anomiconbasic';
 import { AppInfoAdapter } from 'anomiconbasic';
 import { AppInfoPort } from 'anomiconbasic';
 import { HapticFeedbackPort } from 'anomiconbasic';
@@ -70,6 +71,14 @@ import { ArticleMetadataAdapter } from './ArticleMetadataAdapter';
 import { CatalogArticleHtmlAdapter } from './CatalogArticleHtmlAdapter';
 import { CatalogExploreDependenciesAdapter } from './CatalogExploreAdapters';
 import { TerminalViewModel } from 'terminal';
+import {
+  Archive3DFeatureGraph,
+  ArchiveModelDescriptor,
+  ArchiveModelUseCase,
+  createArchive3DFeatureGraph,
+  describeScp3DAsset,
+  listScp3DModelAssets
+} from 'archive3d';
 import { AbilityScopeOwner } from './AbilityScopeOwner';
 import {
   TerminalFavoritesAdapter,
@@ -106,6 +115,9 @@ export class AppContainer {
   private previewRepository: PreviewRepository | undefined = undefined;
   private searchHistoryRepository: SearchHistoryRepository | undefined = undefined;
   private imagePreviewActionsState: ImagePreviewActions | undefined = undefined;
+  /** Application-scoped 3D package graph; request.agent survives page changes. */
+  private archive3DGraph: Archive3DFeatureGraph | undefined = undefined;
+  private archive3DUseCaseState: ArchiveModelUseCase | undefined = undefined;
   private readonly abilityScopeOwner: AbilityScopeOwner = new AbilityScopeOwner();
   private readonly appInfoCapability: AppInfoPort = new AppInfoAdapter();
   private readonly hapticFeedbackCapability: HapticFeedbackPort = new HapticFeedbackAdapter();
@@ -129,6 +141,30 @@ export class AppContainer {
         this.replaceAbilityScope();
       }
       this.abilityScopeOwner.attach(context);
+    }
+    if (this.archive3DGraph === undefined) {
+      const applicationContext = context.getApplicationContext();
+      const downloads = new RequestAgentBackgroundDownloadAdapter(
+        applicationContext,
+        context.abilityInfo.bundleName,
+        context.abilityInfo.name
+      );
+      const archiveModels: ArchiveModelDescriptor[] = listScp3DModelAssets().map(
+        (asset): ArchiveModelDescriptor => describeScp3DAsset(asset, asset.downloadUrl)
+      );
+      this.archive3DGraph = createArchive3DFeatureGraph(
+        applicationContext.filesDir,
+        downloads,
+        this.idGeneratorCapability,
+        archiveModels
+      );
+      this.archive3DUseCaseState = new ArchiveModelUseCase(this.archive3DGraph.modelPackages);
+      // Restore durable remote tasks and publish bundled snapshots once per
+      // ability. Failures remain visible through per-card state and must not
+      // prevent the rest of the application from starting.
+      this.archive3DGraph.initialize().catch((): void => {
+        console.error('Archive3D feature initialization failed');
+      });
     }
     if (this.settingsGraph === undefined) {
       this.settingsGraph = createSettingsFeatureGraph(context);
@@ -355,6 +391,27 @@ export class AppContainer {
     return this.imagePreviewActionsState;
   }
 
+  /** Access the shared archive graph after initialize(context) has run. */
+  archive3D(): Archive3DFeatureGraph {
+    if (this.archive3DGraph === undefined) {
+      throw new Error('AppContainer must be initialized before loading 3D archives');
+    }
+    return this.archive3DGraph;
+  }
+
+  /** Screen VMs receive this use case instead of constructing repositories. */
+  archive3DModels(): ArchiveModelUseCase {
+    if (this.archive3DUseCaseState === undefined) {
+      throw new Error('AppContainer must be initialized before managing 3D archives');
+    }
+    return this.archive3DUseCaseState;
+  }
+
+  /** Register the current manifest descriptors and restore durable tasks. */
+  initializeArchive3D(models: ArchiveModelDescriptor[]): Promise<void> {
+    return this.archive3D().initialize(models);
+  }
+
   /** Read-only app metadata is exposed as a port; platform bundle APIs stay in common. */
   appInfo(): AppInfoPort {
     return this.appInfoCapability;
@@ -510,6 +567,10 @@ export class AppContainer {
     this.previewRepository = undefined;
     this.searchHistoryRepository = undefined;
     this.imagePreviewActionsState = undefined;
+    // Archive 3D retains only ApplicationContext/request.agent capabilities,
+    // never the UIAbilityContext. Keep it process-scoped so an Ability
+    // recreation can continue observing durable downloads without creating a
+    // second repository or racing a completion callback.
 
     // AppStorageV2 otherwise keeps the old shared VMs and, through their
     // repositories, the first Ability context even after the container fields

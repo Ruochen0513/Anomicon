@@ -6,7 +6,7 @@
  * on-demand downloader later without changing the article route or viewer
  * contract.
  */
-export const SCP_3D_ASSET_SCHEMA_VERSION: number = 2;
+export const SCP_3D_ASSET_SCHEMA_VERSION: number = 3;
 
 export enum Scp3DAssetFormat {
   GLTF = 'gltf',
@@ -15,7 +15,9 @@ export enum Scp3DAssetFormat {
 
 /** Where the reviewed source came from. */
 export enum Scp3DAssetSource {
-  BUNDLED = 'bundled'
+  BUNDLED = 'bundled',
+  /** The bytes are fetched into the app-private archive cache on demand. */
+  REMOTE = 'remote'
 }
 
 /** How the app delivers the bytes to the viewer. */
@@ -46,6 +48,8 @@ export interface Scp3DAssetManifestEntry {
   readonly contentAttribution: string;
   readonly sourceLabel: string;
   readonly sourceUrl: string;
+  /** HTTPS object URL used by the runtime downloader; empty for bundled rows. */
+  readonly downloadUrl: string;
   readonly contentSourceUrl: string;
   readonly description: string;
   readonly objectClass: string;
@@ -61,6 +65,14 @@ export interface Scp3DAssetManifestEntry {
   readonly initialScale: number;
   readonly minimumScale: number;
   readonly maximumScale: number;
+  /** Named source clip and normalized sample point used for a natural pose. */
+  readonly poseAnimationName: string;
+  readonly poseSampleRatio: number;
+  /** Root correction for raw upstream exports (does not mutate downloaded bytes). */
+  readonly runtimeScale: number;
+  readonly runtimeOffsetX: number;
+  readonly runtimeOffsetY: number;
+  readonly runtimeOffsetZ: number;
   readonly hasExternalDependencies: boolean;
   readonly isConceptual: boolean;
 }
@@ -89,6 +101,7 @@ export class Scp3DModelAsset {
   readonly contentAttribution: string;
   readonly sourceLabel: string;
   readonly sourceUrl: string;
+  readonly downloadUrl: string;
   readonly contentSourceUrl: string;
   readonly description: string;
   readonly objectClass: string;
@@ -101,6 +114,12 @@ export class Scp3DModelAsset {
   readonly initialScale: number;
   readonly minimumScale: number;
   readonly maximumScale: number;
+  readonly poseAnimationName: string;
+  readonly poseSampleRatio: number;
+  readonly runtimeScale: number;
+  readonly runtimeOffsetX: number;
+  readonly runtimeOffsetY: number;
+  readonly runtimeOffsetZ: number;
   readonly hasExternalDependencies: boolean;
   readonly isConceptual: boolean;
 
@@ -128,6 +147,7 @@ export class Scp3DModelAsset {
     this.contentAttribution = manifest.contentAttribution;
     this.sourceLabel = manifest.sourceLabel;
     this.sourceUrl = manifest.sourceUrl;
+    this.downloadUrl = manifest.downloadUrl.trim();
     this.contentSourceUrl = manifest.contentSourceUrl;
     this.description = manifest.description;
     this.objectClass = manifest.objectClass;
@@ -140,6 +160,14 @@ export class Scp3DModelAsset {
     this.initialScale = manifest.initialScale;
     this.minimumScale = manifest.minimumScale;
     this.maximumScale = manifest.maximumScale;
+    this.poseAnimationName = manifest.poseAnimationName.trim();
+    this.poseSampleRatio = Number.isFinite(manifest.poseSampleRatio) ?
+      Math.max(0, Math.min(1, manifest.poseSampleRatio)) : 0.5;
+    this.runtimeScale = Number.isFinite(manifest.runtimeScale) && manifest.runtimeScale > 0 ?
+      manifest.runtimeScale : 1;
+    this.runtimeOffsetX = Number.isFinite(manifest.runtimeOffsetX) ? manifest.runtimeOffsetX : 0;
+    this.runtimeOffsetY = Number.isFinite(manifest.runtimeOffsetY) ? manifest.runtimeOffsetY : 0;
+    this.runtimeOffsetZ = Number.isFinite(manifest.runtimeOffsetZ) ? manifest.runtimeOffsetZ : 0;
     this.hasExternalDependencies = manifest.hasExternalDependencies;
     this.isConceptual = manifest.isConceptual;
   }
@@ -149,7 +177,9 @@ const SOURCE_REPOSITORY: string = 'https://github.com/Yni-Viar/scp-unity-assets'
 const SOURCE_COMMIT: string = '7fda38944f51db7ee3aeb4d9e5ca821263153da5';
 const CC_BY_SA_3_URL: string = 'https://creativecommons.org/licenses/by-sa/3.0/';
 const MOBILE_PROCESSING_NOTICE: string =
-  '移动端优化：移除动画、将内嵌贴图缩放至 1024px、清理未使用数据，并加入档案交互根节点。';
+  '移动端优化：从上游动画烘焙静态观察姿势，移除运行时动画，将内嵌贴图缩放至 1024px、清理未使用数据，并加入档案交互根节点。';
+const REMOTE_RUNTIME_NOTICE: string =
+  '按需下载上游自包含 GLB；加载时仅采样命名待机动画，并由查看器添加居中与交互根节点，不改写原文件。';
 const REPRESENTATION_NOTICE: string =
   '社区创作的视觉重建，不代表 SCP 官方形象或实体复原。';
 
@@ -157,11 +187,54 @@ function sourceUrl(folder: string, fileName: string): string {
   return `${SOURCE_REPOSITORY}/blob/${SOURCE_COMMIT}/Rigged-Ready/${folder}/${fileName}.glb`;
 }
 
+function rawSourceUrl(folder: string, fileName: string): string {
+  return `https://raw.githubusercontent.com/Yni-Viar/scp-unity-assets/${SOURCE_COMMIT}/Rigged-Ready/${folder}/${fileName}.glb`;
+}
+
 /**
- * Reviewed, bundled seed models. Only rows in this list expose a 三维档案
- * action; an unknown SCP number never falls back to a generic placeholder.
+ * Reviewed seed models. Every row in this list exposes a 三维档案 action;
+ * delivery only controls whether the bytes are bundled or installed on demand.
+ * An unknown SCP number never falls back to a generic placeholder.
  */
 export const SCP_3D_ASSET_MANIFEST: Scp3DAssetManifestEntry[] = [
+  {
+    assetId: 'scp-106-mobile-v1',
+    contentId: 'scp-106',
+    resourcePath: 'models/scp-106.glb',
+    format: Scp3DAssetFormat.GLB,
+    source: Scp3DAssetSource.BUNDLED,
+    delivery: Scp3DAssetDelivery.BUNDLED,
+    version: '1.0.0-mobile-pose',
+    byteLength: 8662380,
+    sha256: 'b4141e5b4ca03cce7da388a28d0d18d25a8dbb9d88545e79028ebd965fd0d23b',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: CC_BY_SA_3_URL,
+    attribution: 'Aruspice（模型/贴图）、Shakles（绑定/动画）、PixelPuffin（概念设计）',
+    contentAttribution: '条目来源：SCP Wiki / SCP-106',
+    sourceLabel: 'Yni-Viar/scp-unity-assets · Rigged-Ready/Scp106',
+    sourceUrl: sourceUrl('Scp106', 'Scp106'),
+    downloadUrl: '',
+    contentSourceUrl: 'https://scp-wiki.wikidot.com/scp-106',
+    description: 'SCP-106 的社区视觉重建移动端版本。',
+    objectClass: 'KETER',
+    notice: REPRESENTATION_NOTICE,
+    modificationNote: `${MOBILE_PROCESSING_NOTICE} 观察姿势取 106_Idle · 50%。`,
+    estimatedTriangleCount: 16404,
+    renderTargetMaxPx: 768,
+    cameraDistance: 6.8,
+    fieldOfView: 0.56,
+    initialScale: 1.05,
+    minimumScale: 0.62,
+    maximumScale: 1.72,
+    poseAnimationName: '106_Idle',
+    poseSampleRatio: 0.5,
+    runtimeScale: 1,
+    runtimeOffsetX: 0,
+    runtimeOffsetY: 0,
+    runtimeOffsetZ: 0,
+    hasExternalDependencies: false,
+    isConceptual: true
+  },
   {
     assetId: 'scp-049-mobile-v2',
     contentId: 'scp-049',
@@ -169,15 +242,16 @@ export const SCP_3D_ASSET_MANIFEST: Scp3DAssetManifestEntry[] = [
     format: Scp3DAssetFormat.GLB,
     source: Scp3DAssetSource.BUNDLED,
     delivery: Scp3DAssetDelivery.BUNDLED,
-    version: '2.0.0-mobile',
-    byteLength: 6945764,
-    sha256: '70781b10ed06b5b95e10dd4c0f31db366a2f01a2c61290cd43e2cea8b42e0287',
+    version: '2.1.0-mobile-pose',
+    byteLength: 6947368,
+    sha256: '7d9fd347d38e67ed2e3b8465b62d27674cacfeeb15c4e31b953fef19e97ef962',
     license: 'CC BY-SA 3.0',
     licenseUrl: CC_BY_SA_3_URL,
     attribution: 'Aruspice（模型/贴图）、Shakles（绑定/动画）、PixelPuffin（概念设计）',
     contentAttribution: '条目作者：Gabriel Jade；重写：djkaktus、Gabriel Jade',
     sourceLabel: 'Yni-Viar/scp-unity-assets · Rigged-Ready/Scp049',
     sourceUrl: sourceUrl('Scp049', 'Scp049'),
+    downloadUrl: '',
     contentSourceUrl: 'https://scp-wiki.wikidot.com/scp-049',
     description: 'SCP-049 的社区视觉重建移动端版本。',
     objectClass: 'EUCLID',
@@ -190,6 +264,12 @@ export const SCP_3D_ASSET_MANIFEST: Scp3DAssetManifestEntry[] = [
     initialScale: 1.09,
     minimumScale: 0.66,
     maximumScale: 1.75,
+    poseAnimationName: '049_Idle2',
+    poseSampleRatio: 0.5,
+    runtimeScale: 1,
+    runtimeOffsetX: 0,
+    runtimeOffsetY: 0,
+    runtimeOffsetZ: 0,
     hasExternalDependencies: false,
     isConceptual: true
   },
@@ -200,15 +280,16 @@ export const SCP_3D_ASSET_MANIFEST: Scp3DAssetManifestEntry[] = [
     format: Scp3DAssetFormat.GLB,
     source: Scp3DAssetSource.BUNDLED,
     delivery: Scp3DAssetDelivery.BUNDLED,
-    version: '2.0.0-mobile',
-    byteLength: 3969704,
-    sha256: '4b346ef05a2e0ae674d034e9e0c83e5b3ce2ee90b027363afe88c4e951e9f18c',
+    version: '2.1.0-mobile-pose',
+    byteLength: 3969944,
+    sha256: 'f89aefe1f7cf116dc8c12e9c5d554278217afe4744e49e14ab52840ca91f256d',
     license: 'CC BY-SA 3.0',
     licenseUrl: CC_BY_SA_3_URL,
     attribution: 'Aruspice（模型/贴图）、Shakles（绑定/动画）、PixelPuffin（概念设计）',
     contentAttribution: '条目作者：Moto42',
     sourceLabel: 'Yni-Viar/scp-unity-assets · Rigged-Ready/Scp173',
     sourceUrl: sourceUrl('Scp173', 'Scp173'),
+    downloadUrl: '',
     contentSourceUrl: 'https://scp-wiki.wikidot.com/scp-173',
     description: 'SCP-173 NEO（版本 2）社区视觉重建移动端版本。',
     objectClass: 'EUCLID',
@@ -221,6 +302,12 @@ export const SCP_3D_ASSET_MANIFEST: Scp3DAssetManifestEntry[] = [
     initialScale: 1.04,
     minimumScale: 0.62,
     maximumScale: 1.62,
+    poseAnimationName: '173_Pose1',
+    poseSampleRatio: 0,
+    runtimeScale: 1,
+    runtimeOffsetX: 0,
+    runtimeOffsetY: 0,
+    runtimeOffsetZ: 0,
     hasExternalDependencies: false,
     isConceptual: true
   },
@@ -231,15 +318,16 @@ export const SCP_3D_ASSET_MANIFEST: Scp3DAssetManifestEntry[] = [
     format: Scp3DAssetFormat.GLB,
     source: Scp3DAssetSource.BUNDLED,
     delivery: Scp3DAssetDelivery.BUNDLED,
-    version: '2.0.0-mobile',
-    byteLength: 3207564,
-    sha256: '6abc175b9f7b79f53bf27e1a21c821155b68bbfcf148b53e0c1c06474b4fd7ab',
+    version: '2.1.0-mobile-pose',
+    byteLength: 3209604,
+    sha256: 'cd243a640bcba5379609957ebb94beea3c31c2bd8a6e7e8a53e605abe4a33767',
     license: 'CC BY-SA 3.0',
     licenseUrl: CC_BY_SA_3_URL,
     attribution: 'Apocryphos（模型）、Shadowscale（贴图）、Shakles（绑定/动画）',
     contentAttribution: '条目作者：Adam Smascher、EchoFourDelta',
     sourceLabel: 'Yni-Viar/scp-unity-assets · Rigged-Ready/Scp939',
     sourceUrl: sourceUrl('Scp939', 'Scp939'),
+    downloadUrl: '',
     contentSourceUrl: 'https://scp-wiki.wikidot.com/scp-939',
     description: 'SCP-939 的社区视觉重建移动端版本。',
     objectClass: 'KETER',
@@ -252,10 +340,168 @@ export const SCP_3D_ASSET_MANIFEST: Scp3DAssetManifestEntry[] = [
     initialScale: 1.32,
     minimumScale: 0.79,
     maximumScale: 2.11,
+    poseAnimationName: '939_Idle',
+    poseSampleRatio: 0.5,
+    runtimeScale: 1,
+    runtimeOffsetX: 0,
+    runtimeOffsetY: 0,
+    runtimeOffsetZ: 0,
+    hasExternalDependencies: false,
+    isConceptual: true
+  },
+  {
+    assetId: 'scp-131-orange-mobile-v1',
+    contentId: 'scp-131',
+    resourcePath: '',
+    format: Scp3DAssetFormat.GLB,
+    source: Scp3DAssetSource.REMOTE,
+    delivery: Scp3DAssetDelivery.ON_DEMAND,
+    version: '1.0.0-upstream',
+    byteLength: 12429448,
+    sha256: '5e01d45bcb75bff4465f3b6418169919ea35ece79346e0e540d085b704a0a32a',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: CC_BY_SA_3_URL,
+    attribution: 'Aruspice（模型/贴图）、Shakles（绑定/动画）',
+    contentAttribution: '条目作者：Lt Masipag；SCP-131-A 橙色成员',
+    sourceLabel: 'Yni-Viar/scp-unity-assets · Rigged-Ready/Scp131/Scp131Orange',
+    sourceUrl: sourceUrl('Scp131', 'Scp131Orange'),
+    downloadUrl: rawSourceUrl('Scp131', 'Scp131Orange'),
+    contentSourceUrl: 'https://scp-wiki.wikidot.com/scp-131',
+    description: 'SCP-131-A（橙色成员）社区视觉重建；下载后可离线查看。',
+    objectClass: 'SAFE',
+    notice: REPRESENTATION_NOTICE,
+    modificationNote: `${REMOTE_RUNTIME_NOTICE} 观察姿势取 131_Idle · 50%；保留上游导出的单位校正。`,
+    estimatedTriangleCount: 4104,
+    renderTargetMaxPx: 768,
+    cameraDistance: 4.8,
+    fieldOfView: 0.56,
+    initialScale: 10.8,
+    minimumScale: 6.5,
+    maximumScale: 17.5,
+    poseAnimationName: '131_Idle',
+    poseSampleRatio: 0.5,
+    // The source already carries its authored 0.01 skeleton scale.  The
+    // viewer's established 10.8 framing compensates for that scale; applying
+    // another 12x correction here would make the object roughly an order of
+    // magnitude too large. Keep this correction neutral until a reviewed
+    // composite export replaces the raw on-demand source.
+    runtimeScale: 1,
+    runtimeOffsetX: 0,
+    runtimeOffsetY: -0.1175352839,
+    runtimeOffsetZ: -0.0068236999,
+    hasExternalDependencies: false,
+    isConceptual: true
+  },
+  {
+    assetId: 'scp-3199-mobile-v1',
+    contentId: 'scp-3199',
+    resourcePath: '',
+    format: Scp3DAssetFormat.GLB,
+    source: Scp3DAssetSource.REMOTE,
+    delivery: Scp3DAssetDelivery.ON_DEMAND,
+    version: '1.0.0-upstream',
+    byteLength: 51054324,
+    sha256: 'c83d9cf29b7282827c94924e1ccd6983c8c94a175b1e0df9a9d7a7e9a76800e1',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: CC_BY_SA_3_URL,
+    attribution: 'Aruspice（模型/贴图）、Shakles（绑定/动画）',
+    contentAttribution: '条目来源：SCP Wiki / SCP-3199',
+    sourceLabel: 'Yni-Viar/scp-unity-assets · Rigged-Ready/Scp3199',
+    sourceUrl: sourceUrl('Scp3199', 'Scp3199'),
+    downloadUrl: rawSourceUrl('Scp3199', 'Scp3199'),
+    contentSourceUrl: 'https://scp-wiki.wikidot.com/scp-3199',
+    description: 'SCP-3199 的社区视觉重建；大体积资源按需下载。',
+    objectClass: 'KETER',
+    notice: REPRESENTATION_NOTICE,
+    modificationNote: `${REMOTE_RUNTIME_NOTICE} 观察姿势取 3199_Idle · 50%。`,
+    estimatedTriangleCount: 16002,
+    renderTargetMaxPx: 768,
+    cameraDistance: 6.8,
+    fieldOfView: 0.56,
+    initialScale: 1.03,
+    minimumScale: 0.62,
+    maximumScale: 1.72,
+    poseAnimationName: '3199_Idle',
+    poseSampleRatio: 0.5,
+    runtimeScale: 1,
+    runtimeOffsetX: 0,
+    runtimeOffsetY: -1.4218896031,
+    runtimeOffsetZ: 0.1055011749,
+    hasExternalDependencies: false,
+    isConceptual: true
+  },
+  {
+    assetId: 'scp-650-mobile-v1',
+    contentId: 'scp-650',
+    resourcePath: '',
+    format: Scp3DAssetFormat.GLB,
+    source: Scp3DAssetSource.REMOTE,
+    delivery: Scp3DAssetDelivery.ON_DEMAND,
+    version: '1.0.0-upstream',
+    byteLength: 8180984,
+    sha256: '62bf92f0cd131fc0f71268a264c79eb02b9387c360dc60fe88c89226c5620c44',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: CC_BY_SA_3_URL,
+    attribution: 'Shadowscale（模型/贴图）',
+    contentAttribution: '条目作者：Dr Talson',
+    sourceLabel: 'Yni-Viar/scp-unity-assets · Rigged-Ready/Scp650',
+    sourceUrl: sourceUrl('Scp650', 'Scp650'),
+    downloadUrl: rawSourceUrl('Scp650', 'Scp650'),
+    contentSourceUrl: 'https://scp-wiki.wikidot.com/scp-650',
+    description: 'SCP-650 的社区视觉重建；下载后可离线查看。',
+    objectClass: 'EUCLID',
+    notice: REPRESENTATION_NOTICE,
+    modificationNote: `${REMOTE_RUNTIME_NOTICE} 采用 Pose 1 · 0%，保留上游材质与动画数据。`,
+    estimatedTriangleCount: 8640,
+    renderTargetMaxPx: 768,
+    cameraDistance: 6.8,
+    fieldOfView: 0.56,
+    initialScale: 1.19,
+    minimumScale: 0.71,
+    maximumScale: 1.90,
+    poseAnimationName: 'Pose 1',
+    poseSampleRatio: 0,
+    runtimeScale: 1,
+    runtimeOffsetX: 0,
+    runtimeOffsetY: 0,
+    runtimeOffsetZ: 0,
     hasExternalDependencies: false,
     isConceptual: true
   }
 ];
+
+/**
+ * Delivery policy guardrail: only the small, reviewed classic seed set may
+ * become part of the application package.  SCP-096 is intentionally listed
+ * here as an allowed classic id so a future reviewed asset can be bundled,
+ * but it is not a manifest row until its binary provenance is approved.
+ */
+const CLASSIC_BUNDLED_CONTENT_IDS: string[] = [
+  'scp-049',
+  'scp-106',
+  'scp-173',
+  'scp-939',
+  'scp-096'
+];
+
+function validateDeliveryPolicy(entry: Scp3DAssetManifestEntry): void {
+  const isClassic = CLASSIC_BUNDLED_CONTENT_IDS.indexOf(entry.contentId) >= 0;
+  if (entry.delivery === Scp3DAssetDelivery.BUNDLED && !isClassic) {
+    throw new Error(`非经典 SCP 不得随应用内置：${entry.contentId}`);
+  }
+  if (entry.delivery === Scp3DAssetDelivery.BUNDLED &&
+    entry.source !== Scp3DAssetSource.BUNDLED) {
+    throw new Error(`内置模型来源标记不一致：${entry.contentId}`);
+  }
+  if (entry.delivery === Scp3DAssetDelivery.ON_DEMAND &&
+    (entry.source !== Scp3DAssetSource.REMOTE || !entry.downloadUrl.startsWith('https://'))) {
+    throw new Error(`按需模型必须声明 HTTPS 远程来源：${entry.contentId}`);
+  }
+}
+
+for (let index: number = 0; index < SCP_3D_ASSET_MANIFEST.length; index++) {
+  validateDeliveryPolicy(SCP_3D_ASSET_MANIFEST[index]);
+}
 
 /** Normalize and validate an SCP object id at the feature boundary. */
 export function normalizeScpObjectId(value: string): string | undefined {
@@ -278,27 +524,24 @@ function boundedTitle(title: string, fallback: string): string {
   return trimmed.length > 120 ? trimmed.substring(0, 120) : trimmed;
 }
 
+/** Find a reviewed catalog row, regardless of how its bytes are delivered. */
 function findManifestEntry(normalizedId: string): Scp3DAssetManifestEntry | undefined {
   for (let index: number = 0; index < SCP_3D_ASSET_MANIFEST.length; index++) {
     const candidate = SCP_3D_ASSET_MANIFEST[index];
-    // The availability gate is intentionally conservative: an on-demand row
-    // will become visible only after a future installer promotes it to a
-    // bundled/app-owned entry.
-    if (candidate.contentId === normalizedId &&
-      candidate.delivery === Scp3DAssetDelivery.BUNDLED) {
+    if (candidate.contentId === normalizedId) {
       return candidate;
     }
   }
   return undefined;
 }
 
-/** True only for SCP object ids with a reviewed, shipped 3D model. */
+/** True for SCP object ids with a reviewed catalog row (bundled or on-demand). */
 export function hasScp3DModel(itemId: string): boolean {
   const normalized = normalizeScpObjectId(itemId);
   return normalized !== undefined && findManifestEntry(normalized) !== undefined;
 }
 
-/** Resolve only reviewed rows; no network URL or generic fallback is inferred. */
+/** Resolve only reviewed catalog rows; no network URL or generic fallback is inferred. */
 export function resolveScp3DModelAsset(
   itemId: string,
   title: string = ''
@@ -316,5 +559,21 @@ export function resolveScp3DModelAsset(
     boundedTitle(title, normalized.toUpperCase()),
     manifest,
     Scp3DAssetKind.SPECIFIC
+  );
+}
+
+/**
+ * Project the immutable catalog into item-bound assets for the archive gallery.
+ * The returned array is freshly allocated so callers cannot mutate the build
+ * manifest or accidentally retain native rendering state in the HAR.
+ */
+export function listScp3DModelAssets(): Scp3DModelAsset[] {
+  return SCP_3D_ASSET_MANIFEST.map((manifest: Scp3DAssetManifestEntry): Scp3DModelAsset =>
+    new Scp3DModelAsset(
+      manifest.contentId,
+      manifest.contentId.toUpperCase(),
+      manifest,
+      Scp3DAssetKind.SPECIFIC
+    )
   );
 }

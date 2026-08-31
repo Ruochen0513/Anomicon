@@ -1,6 +1,6 @@
 Anomicon bundled SCP model attribution
 
-The SCP-049, SCP-173 and SCP-939 mobile GLB derivatives are based on the
+The SCP-049, SCP-106, SCP-173 and SCP-939 mobile GLB derivatives are based on the
 reviewed assets in Yni-Viar/scp-unity-assets, fixed source revision:
 https://github.com/Yni-Viar/scp-unity-assets/tree/7fda38944f51db7ee3aeb4d9e5ca821263153da5
 SCP Foundation Wiki:
@@ -16,6 +16,9 @@ SCP-049 / SCP-173:
   https://scp-wiki.wikidot.com/scp-049
   SCP-173 article: Moto42
   https://scp-wiki.wikidot.com/scp-173
+SCP-106:
+  Aruspice (model/textures), Shakles (rig/animation), PixelPuffin (concept)
+  https://scp-wiki.wikidot.com/scp-106
 SCP-939:
   Apocryphos (model), Shadowscale (textures), Shakles (rig/animation)
   SCP-939 article: Adam Smascher and EchoFourDelta
@@ -24,10 +27,24 @@ SCP-939:
 License: CC BY-SA 3.0
 https://creativecommons.org/licenses/by-sa/3.0/
 
-Anomicon mobile processing: animations removed, embedded textures constrained
-to 1024px, unused data cleaned, and an AnomiconInteractivePivot node added for
-the mobile viewer. The shipped files are visual reconstructions, not official
-SCP Foundation models.
+Anomicon mobile processing: a reviewed static observation pose was baked from
+the upstream rig animations (049_Idle2, 106_Idle, 173_Pose1 and 939_Idle), runtime
+animation tracks were removed, embedded textures were constrained to 1024px,
+unused data was cleaned, and an AnomiconInteractivePivot node was added for the
+mobile viewer. The shipped files are visual reconstructions, not official SCP
+Foundation models.
+
+The SCP-131-A, SCP-3199 and SCP-650 entries are on-demand rows. Their immutable
+upstream GLBs are downloaded over HTTPS, checked against the manifest byte length
+and SHA-256, and retained only in the app-private archive cache. The viewer
+samples the named idle clip at runtime; deleting an entry removes only that
+private cache object.
+
+Delivery policy: only reviewed classic seed objects are bundled. Other reviewed
+objects remain on demand and must pass the same fixed-source, license,
+attribution, size and SHA-256 review before they are added to the manifest.
+SCP-096 is not listed yet because no fixed redistributable source has passed
+that review; no unavailable model entry is exposed in the article menu.
 
 SCP-173 is the NEO/version-2 redesign asset. The SCP Foundation licensing
 guide still contains additional guidance for the former Untitled 2004

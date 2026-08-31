@@ -1,9 +1,12 @@
 import { HdsNavigationMenuContentOptions } from '@kit.UIDesignKit';
 import { HomeTabId, TabItem } from './TabItem';
 
-interface TabMenuActions {
+/** Actions exposed by the title-bar menus.  The gallery callback is optional
+ * so older composition roots can keep constructing the view model unchanged. */
+export interface TabMenuActions {
   onCatalogSearch: () => void;
   onOpenSettings: () => void;
+  onOpenArchive3DGallery?: () => void;
 }
 
 /** Phone-product tab state; menu actions are injected by the composition root. */
@@ -24,7 +27,10 @@ export class TabsViewModel {
       new TabItem(
         HomeTabId.CATALOG,
         '图鉴',
-        this.createSearchMenu('搜索图鉴', actions.onCatalogSearch),
+        this.createCatalogMenu(
+          actions.onCatalogSearch,
+          actions.onOpenArchive3DGallery ?? ((): void => {})
+        ),
         $r('sys.symbol.list_book'),
         $r('sys.symbol.list_book_fill')
       ),
@@ -60,18 +66,36 @@ export class TabsViewModel {
     return true;
   }
 
-  private createSearchMenu(
-    label: string,
-    action: () => void
+  /**
+   * Keep both catalog actions in the same title-bar menu.  HDS can expose the
+   * entries directly while retaining its normal overflow behaviour on narrow
+   * windows; the composition root owns the actual navigation callbacks.
+   */
+  private createCatalogMenu(
+    searchAction: () => void,
+    archive3DAction: () => void
   ): HdsNavigationMenuContentOptions {
     return {
-      value: [{
-        content: {
-          icon: $r('sys.symbol.magnifyingglass'),
-          label: label,
-          action: action
+      // There are exactly two catalog actions; keep both as first-class menu
+      // icons when the title bar has room instead of relying on the default
+      // three-item budget (which may reserve a slot for overflow).
+      maxCount: 2,
+      value: [
+        {
+          content: {
+            icon: $r('sys.symbol.magnifyingglass'),
+            label: '搜索图鉴',
+            action: searchAction
+          }
+        },
+        {
+          content: {
+            icon: $r('sys.symbol.square_stack_3d'),
+            label: '三维档案馆',
+            action: archive3DAction
+          }
         }
-      }]
+      ]
     };
   }
 

@@ -10,5 +10,21 @@ export {
   SCP_3D_ASSET_MANIFEST,
   normalizeScpObjectId,
   hasScp3DModel,
-  resolveScp3DModelAsset
+  resolveScp3DModelAsset,
+  listScp3DModelAssets,
+  ArchiveModelDelivery,
+  ArchiveSceneSourceKind,
+  ArchiveModelAttribution,
+  ArchiveModelDescriptor,
+  ArchiveSceneSource,
+  ArchiveModelInstallState,
+  ArchiveModelInstallSnapshot,
+  ArchiveModelInstallListener,
+  ArchiveModelPackageRepository,
+  Archive3DFeatureGraph,
+  SceneLoadReceipt,
+  SceneRepository,
+  ArchiveModelUseCase,
+  createArchive3DFeatureGraph,
+  describeScp3DAsset
 } from './src/main/ets/Index';

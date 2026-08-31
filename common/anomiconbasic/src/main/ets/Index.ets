@@ -21,6 +21,17 @@ export {
   ExternalUrlPolicy
 } from './platform/Index';
 export {
+  BackgroundDownloadState,
+  BackgroundDownloadErrorKind,
+  BackgroundDownloadError,
+  BackgroundDownloadRequest,
+  BackgroundDownloadSnapshot,
+  BackgroundDownloadListener,
+  BackgroundDownloadTask,
+  BackgroundDownloadClient,
+  RequestAgentBackgroundDownloadAdapter
+} from './platform/Index';
+export {
   AtomicTextCacheFileStore,
   ANOMICON_DATABASE_NAME
 } from './storage/Index';

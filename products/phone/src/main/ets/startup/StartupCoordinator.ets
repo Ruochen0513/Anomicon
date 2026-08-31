@@ -1,6 +1,8 @@
 import { accessibility } from '@kit.AccessibilityKit';
 import { FrameCallback, UIContext } from '@kit.ArkUI';
+import { schedulingOptimization } from '@kit.FASTKit';
 import { ExploreHeroAnchor } from 'explore';
+import { FastPerformanceHintScope } from '../composition/FastPerformanceHints';
 
 const MAX_LAYOUT_WAIT_FRAMES: number = 5;
 const REQUIRED_STABLE_LAYOUT_SAMPLES: number = 2;
@@ -119,6 +121,12 @@ export class StartupCoordinator {
   private releaseGateOpened: boolean = false;
   private releaseGateToken: number = 0;
   private cancelStartingWindowWait: (() => void) | undefined = undefined;
+  /** The custom cold-start hand-off is a bounded app-launch scene. */
+  private readonly launchHint: FastPerformanceHintScope =
+    new FastPerformanceHintScope(
+      schedulingOptimization.SceneType.APP_LAUNCH,
+      schedulingOptimization.DurationType.MEDIUM
+    );
 
   constructor() {
     if (startupClaimedInProcess) {
@@ -164,6 +172,7 @@ export class StartupCoordinator {
       return;
     }
     this.started = true;
+    this.launchHint.begin();
     this.uiContext = uiContext;
     const gateToken = ++this.releaseGateToken;
     const openReleaseGate = (watchdogExpired: boolean): void => {
@@ -446,6 +455,7 @@ export class StartupCoordinator {
       return;
     }
     this.finished = true;
+    this.launchHint.end();
     this.releaseGateToken++;
     this.cancelStartingWindowWait?.();
     this.cancelStartingWindowWait = undefined;

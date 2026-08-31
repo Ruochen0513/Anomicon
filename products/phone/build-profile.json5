@@ -1,6 +1,14 @@
 {
   "apiType": "stageMode",
-  "buildOption": { "resOptions": { "copyCodeResource": { "enable": false } } },
+  "buildOption": {
+    "resOptions": { "copyCodeResource": { "enable": false } },
+    "arkOptions": {
+      // The phone HAP imports named symbols from local feature HARs.  Let the
+      // compiler resolve those symbols directly so unused HAR entry exports
+      // are not initialized during cold start.
+      "expandImportPath": { "enable": true }
+    }
+  },
   "buildOptionSet": [
     {
       "name": "release",

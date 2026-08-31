@@ -39,6 +39,11 @@
       "name": "archive3d",
       "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
       "buildFunction": "Scp3DArchiveRouteAdapter"
+    },
+    {
+      "name": "archive3dGallery",
+      "pageSourceFile": "src/main/ets/pages/routes/RouteAdapters.ets",
+      "buildFunction": "Scp3DArchiveGalleryRouteAdapter"
     }
   ]
 }

@@ -280,6 +280,10 @@ struct ExploreRecommendationCard {
       .width('100%')
       .height(176)
       .objectFit(ImageFit.Cover)
+      // Recommendation cards never display the source at full resolution;
+      // let ImageKit decode to the measured card bounds to reduce memory and
+      // texture upload cost while keeping the original URL/cache contract.
+      .autoResize(true)
       // Snapshot the reactive builder proxy before delayed image events arrive.
       .onComplete(this.imageCompleteHandler($$))
       .onError(this.imageErrorHandler($$))

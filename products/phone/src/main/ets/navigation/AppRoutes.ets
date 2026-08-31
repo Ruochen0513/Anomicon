@@ -19,6 +19,8 @@ export class AppRoutes {
   static readonly LIBRARY_COLLECTION: string = 'libraryCollection';
   static readonly EXPLORE_COLLECTION: string = 'exploreCollection';
   static readonly ARCHIVE_3D: string = 'archive3d';
+  /** Manifest-only index for browsing available three-dimensional archives. */
+  static readonly ARCHIVE_3D_GALLERY: string = 'archive3dGallery';
 }
 
 export interface ExploreCollectionRouteParams {

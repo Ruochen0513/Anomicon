@@ -479,12 +479,18 @@ struct ScpArticlePage {
   }
 
   /**
-   * HDS counts the automatically generated More affordance in maxCount.
-   * Reserve one slot for More so SCP objects expose 收藏 + 三维档案 on the
-   * title bar, while the browser/settings actions stay in that overflow menu.
+   * HDS `maxCount` is the number of source menu icons shown directly; the
+   * generated More affordance is added after those icons.  Keep only the
+   * primary actions in the title bar and send every secondary action to More.
    */
   private articleMenuMaxCount(): number {
-    return this.canOpenArchive3D() ? 3 : 2;
+    // Only SCP object pages reserve the compact primary-action slots for the
+    // model affordance.  Tale pages retain their original three direct
+    // actions because there is no object-specific 3D action to prioritize.
+    if (this.contentKind !== LibraryContentKind.SCP) {
+      return 3;
+    }
+    return this.canOpenArchive3D() ? 2 : 1;
   }
 
   private articleMenuItems(): HdsNavigationMenuItemOptions[] {
@@ -723,8 +729,8 @@ struct ScpArticlePage {
         },
         backIcon: { label: '返回', componentId: 'articleBackButton' },
         menu: {
-          // HDS 官方规则中自动生成的“更多”也占一个菜单位：有模型时
-          // maxCount=3 才能外露“收藏 + 三维档案 + 更多”。
+          // HDS 官方规则：maxCount 是直接显示的源菜单图标数，溢出项由
+          // 组件追加“更多”入口；因此有模型时设为 2，外露收藏 + 三维档案。
           value: this.articleMenuItems(),
           maxCount: this.articleMenuMaxCount()
         }

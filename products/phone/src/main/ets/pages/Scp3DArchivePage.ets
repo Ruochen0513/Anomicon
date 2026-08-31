@@ -1,7 +1,9 @@
 import {
   Quaternion
 } from '@kit.ArkGraphics3D';
+import { schedulingOptimization } from '@kit.FASTKit';
 import {
+  HideMode,
   HdsNavDestination,
   HdsNavDestinationTitleMode
 } from '@kit.UIDesignKit';
@@ -12,6 +14,8 @@ import {
   pageContentTop
 } from 'anomiconbasic';
 import {
+  ArchiveModelDescriptor,
+  ArchiveSceneSource,
   Scp3DAssetDelivery,
   Scp3DModelAsset,
   resolveScp3DModelAsset
@@ -23,6 +27,7 @@ import {
   Archive3DSceneHandle,
   loadArchive3DScene
 } from '../composition/Archive3DSceneLoader';
+import { FastPerformanceHintScope } from '../composition/FastPerformanceHints';
 
 const VIEWER_HEIGHT: number = 388;
 const ROTATION_SENSITIVITY_X: number = 0.008;
@@ -32,10 +37,16 @@ const MAX_PITCH: number = 1.05;
 const AUTO_ROTATE_INTERVAL_MS: number = 50;
 const AUTO_ROTATE_STEP: number = 0.014;
 
+/** Resolve a verified local source before ArkGraphics3D touches the file. */
+export type Scp3DArchiveSceneSourceResolver =
+  (asset: Scp3DModelAsset) => Promise<ArchiveSceneSource>;
+
 /** Product route adapter; no native graphics object crosses the route seam. */
 @Builder
-export function Scp3DArchivePageBuilder() {
-  Scp3DArchivePage();
+export function Scp3DArchivePageBuilder(
+  resolveSceneSource?: Scp3DArchiveSceneSourceResolver
+) {
+  Scp3DArchivePage({ resolveSceneSource: resolveSceneSource });
 }
 
 /**
@@ -49,6 +60,12 @@ export function Scp3DArchivePageBuilder() {
 @ComponentV2
 struct Scp3DArchivePage {
   private readonly scroller: Scroller = new Scroller();
+  /** GLB parsing and Scene construction are local-file processing work. */
+  private readonly sceneLoadHint: FastPerformanceHintScope =
+    new FastPerformanceHintScope(
+      schedulingOptimization.SceneType.LOCAL_FILE_PROCESSING,
+      schedulingOptimization.DurationType.MEDIUM
+    );
   private sceneHandle: Archive3DSceneHandle | undefined = undefined;
   private loadGeneration: number = 0;
   private renderTimer: number = -1;
@@ -75,6 +92,7 @@ struct Scp3DArchivePage {
   @Local private yaw: number = 0;
   @Local private pitch: number = 0;
   @Local private modelScale: number = 1;
+  @Param resolveSceneSource: Scp3DArchiveSceneSourceResolver | undefined = undefined;
 
   aboutToAppear(): void {
     this.pageActive = false;
@@ -137,12 +155,19 @@ struct Scp3DArchivePage {
     this.releaseScene();
     this.loading = true;
     this.errorMessage = '';
+    this.sceneLoadHint.begin();
     this.loadSceneAsync(asset, generation);
   }
 
   private async loadSceneAsync(asset: Scp3DModelAsset, generation: number): Promise<void> {
     try {
-      const handle: Archive3DSceneHandle = await loadArchive3DScene(asset);
+      // The application repository verifies size/hash and returns either the
+      // reviewed rawfile or an app-private content-addressed cache path. The
+      // viewer never passes a network URL directly to Scene.load.
+      const source: ArchiveSceneSource = this.resolveSceneSource !== undefined ?
+        await this.resolveSceneSource(asset) :
+        ArchiveSceneSource.bundled(ArchiveModelDescriptor.fromAsset(asset));
+      const handle: Archive3DSceneHandle = await loadArchive3DScene(asset, source);
       if (generation !== this.loadGeneration || !this.pageActive || !this.pageShown) {
         handle.dispose();
         return;
@@ -160,13 +185,19 @@ struct Scp3DArchivePage {
       this.errorMessage = '';
       this.applyModelTransform();
       this.requestRender();
-    } catch (_error) {
+    } catch (error) {
       if (generation !== this.loadGeneration || !this.pageActive || !this.pageShown) {
         return;
       }
       this.loading = false;
       this.sceneReady = false;
-      this.errorMessage = '三维模型暂时无法加载，请稍后重试。';
+      const message = error instanceof Error ? error.message : '';
+      this.errorMessage = message.indexOf('尚未下载') >= 0 ||
+        message.indexOf('未安装') >= 0 ?
+        '此模型尚未下载，请先在三维档案馆安装。' :
+        '三维模型暂时无法加载，请稍后重试。';
+    } finally {
+      this.sceneLoadHint.end();
     }
   }
 
@@ -390,36 +421,6 @@ struct Scp3DArchivePage {
   }
 
   @Builder
-  private pageHeader() {
-    Column({ space: 8 }) {
-      Row() {
-        Text('ARCHIVE 3D')
-          .fontSize(AppTypography.CAPTION_M)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#6D83AE');
-        Blank();
-        Text(this.archiveStatusLabel())
-          .fontSize(AppTypography.CAPTION_M)
-          .fontColor('#6D83AE');
-      }
-      .width('100%');
-      Text(this.contentId)
-        .fontSize(30)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('sys.color.font'))
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis });
-      Text(this.title)
-        .fontSize(AppTypography.SUBTITLE_M)
-        .fontColor($r('sys.color.font_secondary'))
-        .maxLines(2)
-        .textOverflow({ overflow: TextOverflow.Ellipsis });
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start);
-  }
-
-  @Builder
   private stageBadge() {
     Row() {
       Text('SCP OBJECT')
@@ -542,9 +543,6 @@ struct Scp3DArchivePage {
             .onActionStart(() => this.beginPinch())
             .onActionUpdate((event: GestureEvent) => this.updatePinch(event))
         )
-        // Keep the gesture description in the accessibility tree while
-        // leaving the visual stage free of instructional copy.
-        .accessibilityText(`${this.contentId} 三维模型，可单指旋转、双指缩放`)
         .hitTestBehavior(HitTestMode.Default);
 
       this.stageBadge();
@@ -701,35 +699,50 @@ struct Scp3DArchivePage {
 
   build() {
     HdsNavDestination() {
-      Scroll(this.scroller) {
-        Column({ space: 16 }) {
-          this.pageHeader();
-          this.viewerStage();
-          if (!this.loading && this.errorMessage.length === 0 && this.sceneReady) {
-            // Keep controls in normal document flow below the observation
-            // surface. This is more reliable than aligning a child inside a
-            // Component3D Stack and leaves the gesture surface unobstructed.
-            this.stageControls();
+      // Keep a full-size layout root below HDS. Without it a destination with
+      // a short/temporarily empty document can be measured at intrinsic height
+      // and centered inside the available page surface.
+      Stack({ alignContent: Alignment.Top }) {
+        Scroll(this.scroller) {
+          Column({ space: 16 }) {
+            this.viewerStage();
+            if (!this.loading && this.errorMessage.length === 0 && this.sceneReady) {
+              // Keep controls in normal document flow below the observation
+              // surface. This is more reliable than aligning a child inside a
+              // Component3D Stack and leaves the gesture surface unobstructed.
+              this.stageControls();
+            }
+            this.archiveInfo();
           }
-          this.archiveInfo();
+          .width('100%')
+          .constraintSize({ maxWidth: 640 })
+          .padding({
+            left: PHONE_PAGE_MARGIN,
+            right: PHONE_PAGE_MARGIN,
+            // HDS title/status bars are visual overlays here. Keep the model
+            // and metadata below them while the page background reaches them.
+            top: pageContentTop(),
+            bottom: 34
+          });
         }
-        .width('100%')
-        .constraintSize({ maxWidth: 640 })
-        .padding({
-          left: PHONE_PAGE_MARGIN,
-          right: PHONE_PAGE_MARGIN,
-          top: pageContentTop(),
-          bottom: 34
-        });
+        .width(LayoutPolicy.matchParent)
+        .height(LayoutPolicy.matchParent)
+        .align(Alignment.Top)
+        .clip(false)
+        .background($r('sys.color.background_secondary'), {
+          ignoresLayoutSafeAreaEdges: [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM]
+        })
+        .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+        .scrollBar(BarState.Off);
       }
-      .width('100%')
-      .height('100%')
-      .backgroundColor($r('sys.color.background_secondary'))
-      .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
-      .scrollBar(BarState.Off);
+      .width(LayoutPolicy.matchParent)
+      .height(LayoutPolicy.matchParent)
+      .clip(false);
     }
     .titleBar({
       avoidLayoutSafeArea: false,
+      // Match the established secondary-page pattern. The destination
+      // ignores the system safe area and the document applies its own inset.
       enableComponentSafeArea: false,
       content: {
         title: {
@@ -743,6 +756,12 @@ struct Scp3DArchivePage {
     .titleMode(HdsNavDestinationTitleMode.MINI)
     .backgroundColor($r('sys.color.background_secondary'))
     .bindToScrollable([this.scroller])
+    .dynamicHideTitleBar({
+      hideTitleArea: true,
+      hideStatusBar: false,
+      mode: HideMode.SCROLL_UP,
+      hideRatio: 1.5
+    })
     .onReady((context: NavDestinationContext) => {
       this.applyRouteParam(context.pathInfo.param as Object | null | undefined);
     })

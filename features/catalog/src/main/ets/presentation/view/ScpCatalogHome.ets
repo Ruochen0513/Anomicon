@@ -152,6 +152,17 @@ export struct ScpCatalogHome {
   }
 
   @Builder
+  private listHeader() {
+    Column() {
+      this.topSpacer();
+      if (this.viewModel.errorMessage.length > 0 && this.viewModel.entries.length > 0) {
+        this.partialBlock();
+      }
+    }
+    .width('100%');
+  }
+
+  @Builder
   private catalogSkeletonCard(index: number) {
     Column() {
       Column({ space: 6 }) {
@@ -276,10 +287,7 @@ export struct ScpCatalogHome {
               .padding({ left: 16, right: 16, bottom: 160 });
             }
             .header(() => {
-              this.topSpacer();
-              if (this.viewModel.errorMessage.length > 0 && this.viewModel.entries.length > 0) {
-                this.partialBlock()
-              }
+              this.listHeader();
             })
             .width('100%');
           }
