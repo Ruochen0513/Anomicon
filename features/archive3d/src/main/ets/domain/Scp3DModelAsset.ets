@@ -175,6 +175,10 @@ export class Scp3DModelAsset {
 
 const SOURCE_REPOSITORY: string = 'https://github.com/Yni-Viar/scp-unity-assets';
 const SOURCE_COMMIT: string = '7fda38944f51db7ee3aeb4d9e5ca821263153da5';
+const SCP_ASSETS_REPOSITORY: string = 'https://github.com/Yni-Viar/scp-assets';
+// Pin the on-demand sources to a commit instead of a moving branch. This
+// keeps the download URL, byte length and SHA-256 review reproducible.
+const SCP_ASSETS_COMMIT: string = '1265487d1978b60398ab71f366bc5a1ba4ce1d0d';
 const CC_BY_SA_3_URL: string = 'https://creativecommons.org/licenses/by-sa/3.0/';
 const MOBILE_PROCESSING_NOTICE: string =
   '移动端优化：从上游动画烘焙静态观察姿势，移除运行时动画，将内嵌贴图缩放至 1024px、清理未使用数据，并加入档案交互根节点。';
@@ -189,6 +193,14 @@ function sourceUrl(folder: string, fileName: string): string {
 
 function rawSourceUrl(folder: string, fileName: string): string {
   return `https://raw.githubusercontent.com/Yni-Viar/scp-unity-assets/${SOURCE_COMMIT}/Rigged-Ready/${folder}/${fileName}.glb`;
+}
+
+function scpAssetsSourceUrl(path: string): string {
+  return `${SCP_ASSETS_REPOSITORY}/blob/${SCP_ASSETS_COMMIT}/${path}`;
+}
+
+function scpAssetsRawUrl(path: string): string {
+  return `https://raw.githubusercontent.com/Yni-Viar/scp-assets/${SCP_ASSETS_COMMIT}/${path}`;
 }
 
 /**
@@ -469,6 +481,87 @@ export const SCP_3D_ASSET_MANIFEST: Scp3DAssetManifestEntry[] = [
     runtimeOffsetX: 0.09020066,
     runtimeOffsetY: -1.04469753,
     runtimeOffsetZ: -0.00523740,
+    hasExternalDependencies: false,
+    isConceptual: true
+  },
+  {
+    assetId: 'scp-079-cb-v1',
+    contentId: 'scp-079',
+    resourcePath: '',
+    format: Scp3DAssetFormat.GLB,
+    source: Scp3DAssetSource.REMOTE,
+    delivery: Scp3DAssetDelivery.ON_DEMAND,
+    version: '1.0.0-upstream',
+    byteLength: 2771372,
+    sha256: '6cd62bd301387cfbedaa848c93fbad06cab8c1730702816a94e88b34593a5e83',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: CC_BY_SA_3_URL,
+    attribution: 'Hakkla（模型/贴图）、Yni（重混）',
+    contentAttribution: '条目来源：SCP Wiki / SCP-079',
+    sourceLabel: 'Yni-Viar/scp-assets · GFX/SCP-CB/EditedByYni/scp079/079',
+    sourceUrl: scpAssetsSourceUrl('GFX/SCP-CB/EditedByYni/scp079/079/Scp079.glb'),
+    downloadUrl: scpAssetsRawUrl('GFX/SCP-CB/EditedByYni/scp079/079/Scp079.glb'),
+    contentSourceUrl: 'https://scp-wiki.wikidot.com/scp-079',
+    description: 'SCP-079 的视觉重建档案。',
+    objectClass: 'EUCLID',
+    notice: REPRESENTATION_NOTICE,
+    modificationNote: `${REMOTE_RUNTIME_NOTICE} 上游为静态节点模型，运行时不启用动画；按场景边界归一化展示比例。`,
+    estimatedTriangleCount: 13228,
+    renderTargetMaxPx: 768,
+    cameraDistance: 6.8,
+    fieldOfView: 0.56,
+    // The source is a compact horizontal computer assembly. Size it by its
+    // width so the portrait stage does not crop the peripherals.
+    initialScale: 4.8,
+    minimumScale: 2.8,
+    maximumScale: 7.2,
+    poseAnimationName: '',
+    poseSampleRatio: 0,
+    runtimeScale: 1,
+    runtimeOffsetX: -0.00010730,
+    runtimeOffsetY: -0.09792394,
+    runtimeOffsetZ: -0.00006816,
+    hasExternalDependencies: false,
+    isConceptual: true
+  },
+  {
+    assetId: 'scp-178-cb-v1',
+    contentId: 'scp-178',
+    resourcePath: '',
+    format: Scp3DAssetFormat.GLB,
+    source: Scp3DAssetSource.REMOTE,
+    delivery: Scp3DAssetDelivery.ON_DEMAND,
+    version: '1.0.0-upstream',
+    byteLength: 2330788,
+    sha256: '9a2eb124b43470a8208c1235d52a528c9be1ced0c4c2fa509a06e57bbbc62f1e',
+    license: 'CC BY-SA 3.0',
+    licenseUrl: CC_BY_SA_3_URL,
+    attribution: 'Kenneth crooker（模型）',
+    contentAttribution: '条目来源：SCP Wiki / SCP-178',
+    sourceLabel: 'Yni-Viar/scp-assets · GFX/SCP-CB/Characters/Scp178-1',
+    sourceUrl: scpAssetsSourceUrl('GFX/SCP-CB/Characters/Scp178-1/Scp178-1.glb'),
+    downloadUrl: scpAssetsRawUrl('GFX/SCP-CB/Characters/Scp178-1/Scp178-1.glb'),
+    contentSourceUrl: 'https://scp-wiki.wikidot.com/scp-178',
+    description: 'SCP-178 的视觉重建档案。',
+    objectClass: 'SAFE',
+    notice: REPRESENTATION_NOTICE,
+    modificationNote: `${REMOTE_RUNTIME_NOTICE} 采用上游默认中性站姿，运行时停用动画轨道；按原始单位归一化展示比例。`,
+    estimatedTriangleCount: 27958,
+    renderTargetMaxPx: 768,
+    cameraDistance: 6.8,
+    fieldOfView: 0.56,
+    initialScale: 1.12,
+    minimumScale: 0.68,
+    maximumScale: 1.82,
+    // The source character is exported roughly 25x larger than the viewer's
+    // unit convention. Scale the authored hierarchy before applying the
+    // measured visible-bounds correction; this keeps the pivot centered.
+    poseAnimationName: '',
+    poseSampleRatio: 0,
+    runtimeScale: 0.04,
+    runtimeOffsetX: 0.03536686,
+    runtimeOffsetY: -1.43840289,
+    runtimeOffsetZ: 0.09066105,
     hasExternalDependencies: false,
     isConceptual: true
   }
