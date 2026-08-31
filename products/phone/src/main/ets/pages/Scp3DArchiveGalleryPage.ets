@@ -397,7 +397,7 @@ struct Scp3DArchiveGalleryPage {
   @Builder
   private emptyState() {
     Column({ space: 8 }) {
-      SymbolGlyph($r('sys.symbol.square_stack_3d'))
+      SymbolGlyph($r('sys.symbol.puzzle'))
         .fontSize(28)
         .fontColor([$r('sys.color.icon_secondary')]);
       Text('暂无匹配档案')
