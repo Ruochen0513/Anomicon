@@ -34,7 +34,7 @@ unused data was cleaned, and an AnomiconInteractivePivot node was added for the
 mobile viewer. The shipped files are visual reconstructions, not official SCP
 Foundation models.
 
-The SCP-131-A, SCP-3199, SCP-650, SCP-079 and SCP-178 entries are on-demand rows.
+The SCP-131-A, SCP-3199, SCP-650, SCP-079, SCP-178 and SCP-686 entries are on-demand rows.
 Their immutable upstream GLBs are downloaded over HTTPS, checked against the manifest byte length
 and SHA-256, and retained only in the app-private archive cache. The viewer
 samples a reviewed named pose when one is configured; SCP-650 uses its authored
@@ -53,6 +53,17 @@ https://github.com/Yni-Viar/scp-assets/blob/1265487d1978b60398ab71f366bc5a1ba4ce
 The two files are kept as original self-contained GLBs in the private cache;
 SCP-079 has no animation and SCP-178 uses its authored neutral stance with
 runtime animation tracks disabled.
+
+SCP-686 is an additional on-demand GLB from the same fixed scp-assets revision.
+The asset is under the repository's SCP-Wiki CC BY-SA 3.0 attribution terms;
+the model is credited to pop_pop_icard:
+https://github.com/Yni-Viar/scp-assets/blob/1265487d1978b60398ab71f366bc5a1ba4ce1d0d/GFX/By_Pop_Pop_Icard/Items/Scp686/Scp686.glb
+Directory attribution and license context:
+https://github.com/Yni-Viar/scp-assets/blob/1265487d1978b60398ab71f366bc5a1ba4ce1d0d/GFX/By_Pop_Pop_Icard/README.md
+SCP-686 article reference:
+https://scp-wiki.wikidot.com/scp-686
+The viewer presents only the bottle exterior. It must not be interpreted as
+safe handling guidance for the infectious contents described by the article.
 
 Delivery policy: only reviewed classic seed objects are bundled. Other reviewed
 objects remain on demand and must pass the same fixed-source, license,

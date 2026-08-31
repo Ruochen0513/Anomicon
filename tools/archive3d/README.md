@@ -129,10 +129,11 @@ The product manifest is intentionally split by delivery cost and provenance:
 * Additional reviewed objects stay on demand. The app downloads a fixed HTTPS
   revision into its private content-addressed cache, verifies byte length,
   GLB header and SHA-256, and exposes removal only for that cache object. The
-  current on-demand review set includes SCP-131-A, SCP-3199, SCP-650, SCP-079
-  and SCP-178. The latter two come from the fixed
-  `Yni-Viar/scp-assets@1265487d1978b60398ab71f366bc5a1ba4ce1d0d` revision and
-  are licensed under the repository's SCP-CB CC BY-SA 3.0 terms.
+  current on-demand review set includes SCP-131-A, SCP-3199, SCP-650, SCP-079,
+  SCP-178 and SCP-686. SCP-079 and SCP-178 are from the fixed
+  `Yni-Viar/scp-assets@1265487d1978b60398ab71f366bc5a1ba4ce1d0d` SCP-CB
+  revision; SCP-686 is from that revision's `By_Pop_Pop_Icard` collection.
+  Each entry points to its corresponding CC BY-SA 3.0 notice file.
 * A model is not added to the manifest until its binary, license and
   attribution have been reviewed. In particular, SCP-096 is deliberately
   omitted for now because no fixed, redistributable source has passed that
