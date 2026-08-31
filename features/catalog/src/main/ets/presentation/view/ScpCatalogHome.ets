@@ -24,6 +24,7 @@ export struct ScpCatalogHome {
   @Require @Param onOpenArticle: (itemId: string, name: string) => void;
   @Require @Param viewModel: CatalogViewModel;
   @Require @Param previewLoader: CatalogPreviewLoader;
+  @Require @Param resolveLocalPreviewSource: (path: string) => string;
   /** Product composition injects the reviewed 3D capability without making
    * the catalog feature depend on the archive3d renderer or manifest. */
   @Require @Param has3DModel: (itemId: string) => boolean;
@@ -265,6 +266,7 @@ export struct ScpCatalogHome {
                       ScpCatalogCard({
                         entry: row.item,
                         loadPreview: this.previewLoader,
+                        resolveLocalPreviewSource: this.resolveLocalPreviewSource,
                         refreshToken: this.previewReloadToken,
                         show3DModel: this.has3DModel(row.item.itemId),
                         onOpen: (itemId: string, name: string) => this.onOpenArticle(itemId, name),

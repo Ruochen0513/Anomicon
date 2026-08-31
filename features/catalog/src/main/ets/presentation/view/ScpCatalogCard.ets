@@ -1,7 +1,6 @@
 import { CatalogPreviewState, ScpCatalogEntry } from '../ScpCatalogItem';
 import { CatalogPreview } from '../../domain/CatalogContracts';
 import { AppTypography } from 'anomiconbasic';
-import { fileUri } from '@kit.CoreFileKit';
 
 /** Preview loading is supplied by the screen ViewModel; no service singleton crosses this View. */
 export type CatalogPreviewLoader = (
@@ -23,6 +22,8 @@ export struct ScpCatalogCard {
   @Require @Param onOpen: (itemId: string, name: string) => void;
   @Require @Param loadPreview: CatalogPreviewLoader;
   @Require @Param onPreviewLoaded: (entry: ScpCatalogEntry, info: CatalogPreview) => boolean;
+  /** Product composition owns platform-specific sandbox path conversion. */
+  @Require @Param resolveLocalPreviewSource: (path: string) => string;
   @Require @Param show3DModel: boolean;
   @Param refreshToken: number = 0;
 
@@ -126,7 +127,7 @@ export struct ScpCatalogCard {
 
   private previewSource(): string {
     if (this.entry.previewPath.length > 0) {
-      return fileUri.getUriFromPath(this.entry.previewPath);
+      return this.resolveLocalPreviewSource(this.entry.previewPath);
     }
     return this.entry.previewUrl;
   }

@@ -61,6 +61,7 @@ import {
   SettingsViewModel
 } from 'settings';
 import { hasScp3DModel } from 'archive3d';
+import { resolveCatalogPreviewFileSource } from '../composition/CatalogPreviewSourceAdapter';
 
 @ComponentV2
 export struct MainTabIndex {
@@ -222,6 +223,7 @@ export struct MainTabIndex {
                 scroller: this.scrollers[item.id],
                 viewModel: this.catalogViewModel,
                 active: this.tabsViewModel.currentIndex === HomeTabId.CATALOG,
+                resolveLocalPreviewSource: resolveCatalogPreviewFileSource,
                 previewLoader: (itemId: string,
                   onRefreshed?: (preview: CatalogPreview) => void,
                   forceRefresh: boolean = false): Promise<CatalogPreview> =>
