@@ -79,6 +79,9 @@ an explicit, previewed correction such as `--archive-scale 12` (the factor is
 asset-specific) and/or
 `--archive-offset X Y Z`, then record those values with the asset provenance;
 never edit the authored skeleton root just to make the archive camera fit.
+When a clip is sampled, calculate the correction from the visible skinned mesh
+after that pose is applied (not only from the raw accessor bounds); otherwise a
+natural pose can move the model's optical center away from the camera target.
 
 ## Composite archives
 

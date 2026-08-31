@@ -2,6 +2,7 @@ import {
   Quaternion
 } from '@kit.ArkGraphics3D';
 import { schedulingOptimization } from '@kit.FASTKit';
+import { FrameCallback } from '@kit.ArkUI';
 import {
   HideMode,
   HdsNavDestination,
@@ -16,7 +17,6 @@ import {
 import {
   ArchiveModelDescriptor,
   ArchiveSceneSource,
-  Scp3DAssetDelivery,
   Scp3DModelAsset,
   resolveScp3DModelAsset
 } from 'archive3d';
@@ -34,8 +34,23 @@ const ROTATION_SENSITIVITY_X: number = 0.008;
 const ROTATION_SENSITIVITY_Y: number = 0.006;
 const MIN_PITCH: number = -1.05;
 const MAX_PITCH: number = 1.05;
-const AUTO_ROTATE_INTERVAL_MS: number = 50;
-const AUTO_ROTATE_STEP: number = 0.014;
+// Match the former 0.014 rad / 50 ms pace while advancing on VSync. The
+// frame callback keeps the model responsive on 60/90 Hz screens without
+// making the idle scene a continuous renderer.
+const AUTO_ROTATE_SPEED_RAD_PER_SECOND: number = 0.28;
+
+class ArchiveRenderFrameCallback extends FrameCallback {
+  private readonly task: (frameTimeInNano: number) => void;
+
+  constructor(task: (frameTimeInNano: number) => void) {
+    super();
+    this.task = task;
+  }
+
+  onFrame(frameTimeInNano: number): void {
+    this.task(frameTimeInNano);
+  }
+}
 
 /** Resolve a verified local source before ArkGraphics3D touches the file. */
 export type Scp3DArchiveSceneSourceResolver =
@@ -69,12 +84,24 @@ struct Scp3DArchivePage {
   private sceneHandle: Archive3DSceneHandle | undefined = undefined;
   private loadGeneration: number = 0;
   private renderTimer: number = -1;
-  private autoRotateTimer: number = -1;
+  /** A one-shot VSync callback is used instead of a wall-clock 16 ms timer. */
+  private renderFramePending: boolean = false;
+  private renderGeneration: number = 0;
+  private continuousRender: boolean = false;
+  private gestureDepth: number = 0;
+  private lastRenderFrameTimeNano: number = 0;
   private pageActive: boolean = false;
   private pageShown: boolean = false;
   private panStartYaw: number = 0;
   private panStartPitch: number = 0;
   private pinchStartScale: number = 1;
+  // These values are deliberately non-reactive. They are native scene
+  // transforms, not UI state; keeping them out of @Local avoids rebuilding
+  // the surrounding ArkUI tree for every touch sample.
+  private interactionYaw: number = 0;
+  private interactionPitch: number = 0;
+  private interactionScale: number = 1;
+  private transformDirty: boolean = false;
 
   @Local private routeResolved: boolean = false;
   @Local private contentId: string = '';
@@ -89,14 +116,14 @@ struct Scp3DArchivePage {
   @Local private errorMessage: string = '';
   @Local private autoRotate: boolean = false;
   @Local private creditsVisible: boolean = false;
-  @Local private yaw: number = 0;
-  @Local private pitch: number = 0;
-  @Local private modelScale: number = 1;
   @Param resolveSceneSource: Scp3DArchiveSceneSourceResolver | undefined = undefined;
 
   aboutToAppear(): void {
     this.pageActive = false;
     this.pageShown = false;
+    this.gestureDepth = 0;
+    this.continuousRender = false;
+    this.lastRenderFrameTimeNano = 0;
   }
 
   aboutToDisappear(): void {
@@ -122,6 +149,9 @@ struct Scp3DArchivePage {
     this.loading = false;
     this.invalidateLoad();
     this.stopAutoRotate();
+    this.gestureDepth = 0;
+    this.continuousRender = false;
+    this.lastRenderFrameTimeNano = 0;
     this.releaseScene();
 
     const route: Scp3DArchiveRouteParams | undefined = parseScp3DArchiveRoute(param);
@@ -173,9 +203,9 @@ struct Scp3DArchivePage {
         return;
       }
       this.sceneHandle = handle;
-      this.yaw = 0;
-      this.pitch = 0;
-      this.modelScale = asset.initialScale;
+      this.interactionYaw = 0;
+      this.interactionPitch = 0;
+      this.interactionScale = asset.initialScale;
       this.sceneOptions = {
         scene: handle.scene,
         modelType: ModelType.SURFACE
@@ -183,7 +213,7 @@ struct Scp3DArchivePage {
       this.sceneReady = true;
       this.loading = false;
       this.errorMessage = '';
-      this.applyModelTransform();
+      this.transformDirty = true;
       this.requestRender();
     } catch (error) {
       if (generation !== this.loadGeneration || !this.pageActive || !this.pageShown) {
@@ -214,7 +244,9 @@ struct Scp3DArchivePage {
   }
 
   private releaseScene(): void {
+    this.cancelRender();
     this.sceneReady = false;
+    this.transformDirty = false;
     // Remove the native control from the tree before releasing its Scene.
     this.sceneOptions = undefined;
     const handle: Archive3DSceneHandle | undefined = this.sceneHandle;
@@ -223,24 +255,89 @@ struct Scp3DArchivePage {
   }
 
   private cancelRender(): void {
+    // postFrameCallback has no cancellation API. Invalidate any callback that
+    // is already queued; its token check will make it a no-op when it fires.
+    this.renderGeneration++;
+    this.renderFramePending = false;
     if (this.renderTimer >= 0) {
       clearTimeout(this.renderTimer);
       this.renderTimer = -1;
     }
   }
 
-  /** Coalesce gesture updates to roughly one native frame instead of forcing
-   * a render for every touch sample. Idle scenes never use alwaysRender=true. */
+  /**
+   * Coalesce touch samples to the next VSync. During a gesture or auto
+   * rotation the callback re-arms itself, so the native scene can follow the
+   * display cadence; once interaction ends, one final dirty frame is flushed
+   * and the loop stops.
+   */
   private requestRender(): void {
-    if (!this.isRenderable() || this.renderTimer >= 0) {
+    if (!this.isRenderable() || this.renderFramePending) {
       return;
     }
-    this.renderTimer = setTimeout((): void => {
-      this.renderTimer = -1;
-      if (this.isRenderable()) {
-        this.sceneHandle?.scene.renderFrame({ alwaysRender: false });
+    this.renderFramePending = true;
+    const generation: number = this.renderGeneration;
+    try {
+      this.getUIContext().postFrameCallback(new ArchiveRenderFrameCallback(
+        (frameTimeInNano: number): void => this.onRenderFrame(generation, frameTimeInNano)
+      ));
+    } catch (_error) {
+      // The normal path is VSync aligned. A short-lived fallback keeps the
+      // viewer usable if a callback is requested during an unusual UI
+      // teardown/re-attach window.
+      this.renderFramePending = false;
+      if (this.renderTimer >= 0) {
+        return;
       }
-    }, 16);
+      this.renderTimer = setTimeout((): void => {
+        this.renderTimer = -1;
+        this.renderFramePending = false;
+        this.onRenderFrame(generation, 0);
+      }, 16);
+    }
+  }
+
+  private onRenderFrame(generation: number, frameTimeInNano: number): void {
+    this.renderFramePending = false;
+    if (generation !== this.renderGeneration || !this.isRenderable()) {
+      return;
+    }
+
+    if (this.autoRotate && this.sceneReady) {
+      const deltaSeconds: number = this.frameDeltaSeconds(frameTimeInNano);
+      this.interactionYaw += AUTO_ROTATE_SPEED_RAD_PER_SECOND * deltaSeconds;
+      this.transformDirty = true;
+    }
+
+    // Touch events only update the cheap local numbers. Apply the native TRS
+    // once here, immediately before the frame, instead of crossing the
+    // ArkTS/native boundary for every touch sample.
+    if (this.transformDirty) {
+      this.applyModelTransform(false);
+    }
+
+    const scene = this.sceneHandle?.scene;
+    if (scene !== undefined) {
+      scene.renderFrame({ alwaysRender: this.continuousRender });
+    }
+    if (this.continuousRender && this.isRenderable()) {
+      this.requestRender();
+    }
+  }
+
+  private frameDeltaSeconds(frameTimeInNano: number): number {
+    if (!Number.isFinite(frameTimeInNano) || frameTimeInNano <= 0) {
+      this.lastRenderFrameTimeNano = 0;
+      return 1 / 60;
+    }
+    if (this.lastRenderFrameTimeNano <= 0) {
+      this.lastRenderFrameTimeNano = frameTimeInNano;
+      return 1 / 60;
+    }
+    const elapsed: number = (frameTimeInNano - this.lastRenderFrameTimeNano) / 1000000000;
+    this.lastRenderFrameTimeNano = frameTimeInNano;
+    // Guard against a long suspend/resume gap changing the rotation speed.
+    return this.clamp(elapsed, 1 / 120, 0.05);
   }
 
   private clamp(value: number, minimum: number, maximum: number): number {
@@ -272,25 +369,29 @@ struct Scp3DArchivePage {
     return this.multiplyQuaternion(yawRotation, pitchRotation);
   }
 
-  private applyModelTransform(): void {
+  private applyModelTransform(scheduleRender: boolean = true): void {
     const root = this.sceneHandle?.modelRoot;
     if (root === undefined) {
       return;
     }
-    root.rotation = this.rotationFor(this.yaw, this.pitch);
+    root.rotation = this.rotationFor(this.interactionYaw, this.interactionPitch);
     root.scale = {
-      x: this.modelScale,
-      y: this.modelScale,
-      z: this.modelScale
+      x: this.interactionScale,
+      y: this.interactionScale,
+      z: this.interactionScale
     };
-    this.requestRender();
+    this.transformDirty = false;
+    if (scheduleRender) {
+      this.requestRender();
+    }
   }
 
   private resetView(): void {
-    this.yaw = 0;
-    this.pitch = 0;
-    this.modelScale = this.asset?.initialScale ?? 1;
-    this.applyModelTransform();
+    this.interactionYaw = 0;
+    this.interactionPitch = 0;
+    this.interactionScale = this.asset?.initialScale ?? 1;
+    this.transformDirty = true;
+    this.requestRender();
   }
 
   private minimumModelScale(): number {
@@ -307,21 +408,23 @@ struct Scp3DArchivePage {
     }
     this.stopAutoRotate();
     this.autoRotate = false;
-    this.panStartYaw = this.yaw;
-    this.panStartPitch = this.pitch;
+    this.panStartYaw = this.interactionYaw;
+    this.panStartPitch = this.interactionPitch;
+    this.beginContinuousRender();
   }
 
   private updatePan(event: GestureEvent): void {
     if (!this.sceneReady) {
       return;
     }
-    this.yaw = this.panStartYaw + event.offsetX * ROTATION_SENSITIVITY_X;
-    this.pitch = this.clamp(
+    this.interactionYaw = this.panStartYaw + event.offsetX * ROTATION_SENSITIVITY_X;
+    this.interactionPitch = this.clamp(
       this.panStartPitch - event.offsetY * ROTATION_SENSITIVITY_Y,
       MIN_PITCH,
       MAX_PITCH
     );
-    this.applyModelTransform();
+    this.transformDirty = true;
+    this.requestRender();
   }
 
   private beginPinch(): void {
@@ -330,19 +433,21 @@ struct Scp3DArchivePage {
     }
     this.stopAutoRotate();
     this.autoRotate = false;
-    this.pinchStartScale = this.modelScale;
+    this.pinchStartScale = this.interactionScale;
+    this.beginContinuousRender();
   }
 
   private updatePinch(event: GestureEvent): void {
     if (!this.sceneReady || !Number.isFinite(event.scale) || event.scale <= 0) {
       return;
     }
-    this.modelScale = this.clamp(
+    this.interactionScale = this.clamp(
       this.pinchStartScale * event.scale,
       this.minimumModelScale(),
       this.maximumModelScale()
     );
-    this.applyModelTransform();
+    this.transformDirty = true;
+    this.requestRender();
   }
 
   private toggleAutoRotate(): void {
@@ -354,25 +459,40 @@ struct Scp3DArchivePage {
       this.startAutoRotate();
     } else {
       this.stopAutoRotate();
+      if (this.gestureDepth === 0) {
+        this.requestRender();
+      }
     }
   }
 
   private startAutoRotate(): void {
-    this.stopAutoRotate();
-    this.autoRotateTimer = setInterval((): void => {
-      if (!this.autoRotate || !this.isRenderable() || !this.sceneReady) {
-        this.stopAutoRotate();
-        return;
-      }
-      this.yaw += AUTO_ROTATE_STEP;
-      this.applyModelTransform();
-    }, AUTO_ROTATE_INTERVAL_MS);
+    this.continuousRender = true;
+    this.lastRenderFrameTimeNano = 0;
+    this.requestRender();
   }
 
   private stopAutoRotate(): void {
-    if (this.autoRotateTimer >= 0) {
-      clearInterval(this.autoRotateTimer);
-      this.autoRotateTimer = -1;
+    this.lastRenderFrameTimeNano = 0;
+    if (this.gestureDepth === 0) {
+      this.continuousRender = false;
+    }
+  }
+
+  private beginContinuousRender(): void {
+    this.gestureDepth++;
+    this.continuousRender = true;
+    this.lastRenderFrameTimeNano = 0;
+    this.requestRender();
+  }
+
+  private endContinuousRender(): void {
+    if (this.gestureDepth > 0) {
+      this.gestureDepth--;
+    }
+    if (this.gestureDepth === 0 && !this.autoRotate) {
+      this.continuousRender = false;
+      this.lastRenderFrameTimeNano = 0;
+      this.requestRender();
     }
   }
 
@@ -387,6 +507,8 @@ struct Scp3DArchivePage {
     this.invalidateLoad();
     this.stopAutoRotate();
     this.autoRotate = false;
+    this.gestureDepth = 0;
+    this.continuousRender = false;
     this.cancelRender();
     this.releaseScene();
     this.loading = false;
@@ -402,22 +524,11 @@ struct Scp3DArchivePage {
     if (this.asset === undefined) {
       return '—';
     }
-    return `${(this.asset.byteLength / 1024).toFixed(1)} KB`;
-  }
-
-  private archiveStatusLabel(): string {
-    if (this.asset === undefined) {
-      return this.errorMessage.length > 0 ? '未配置' : '准备中';
+    const megabytes: number = this.asset.byteLength / (1024 * 1024);
+    if (megabytes >= 1) {
+      return `${megabytes.toFixed(1)} MB`;
     }
-    const deliveryLabel = this.asset?.delivery === Scp3DAssetDelivery.ON_DEMAND ?
-      '按需下载' : '随应用内置';
-    if (this.loading) {
-      return `${deliveryLabel} · 载入中`;
-    }
-    if (this.errorMessage.length > 0) {
-      return `${deliveryLabel} · 不可用`;
-    }
-    return `${deliveryLabel} · 就绪`;
+    return `${(this.asset.byteLength / 1024).toFixed(0)} KB`;
   }
 
   @Builder
@@ -535,6 +646,8 @@ struct Scp3DArchivePage {
           PanGesture({ fingers: 1, direction: PanDirection.All, distance: 3 })
             .onActionStart(() => this.beginPan())
             .onActionUpdate((event: GestureEvent) => this.updatePan(event))
+            .onActionEnd(() => this.endContinuousRender())
+            .onActionCancel(() => this.endContinuousRender())
         )
         .gesture(
           // HarmonyOS uses 5vp as the default/minimum useful pinch threshold;
@@ -542,6 +655,8 @@ struct Scp3DArchivePage {
           PinchGesture({ fingers: 2, distance: 5 })
             .onActionStart(() => this.beginPinch())
             .onActionUpdate((event: GestureEvent) => this.updatePinch(event))
+            .onActionEnd(() => this.endContinuousRender())
+            .onActionCancel(() => this.endContinuousRender())
         )
         .hitTestBehavior(HitTestMode.Default);
 
@@ -652,6 +767,16 @@ struct Scp3DArchivePage {
   }
 
   @Builder
+  private metadataSectionLabel(label: string) {
+    Text(label)
+      .fontSize(AppTypography.CAPTION_L)
+      .fontWeight(FontWeight.Medium)
+      .fontColor($r('sys.color.font_tertiary'))
+      .width('100%')
+      .margin({ top: 2, bottom: 1 });
+  }
+
+  @Builder
   private archiveInfo() {
     if (this.asset !== undefined) {
       Column({ space: 12 }) {
@@ -683,12 +808,15 @@ struct Scp3DArchivePage {
         Divider()
           .strokeWidth(0.5)
           .color($r('sys.color.comp_divider'));
-        this.metadataRow('资源格式', this.asset.format.toUpperCase());
-        this.metadataRow('资源大小', this.assetSizeLabel());
-        this.metadataRow('模型预算', `${this.asset.estimatedTriangleCount} triangles`);
-        this.metadataRow('交付方式', this.asset.delivery === Scp3DAssetDelivery.ON_DEMAND ?
-          '用户按需下载' : '随应用内置');
-        this.metadataRow('资源版本', this.asset.version);
+        this.metadataSectionLabel('资源');
+        this.metadataRow('格式', this.asset.format.toUpperCase());
+        this.metadataRow('大小', this.assetSizeLabel());
+        this.metadataRow('档案版本', this.asset.version);
+        Divider()
+          .strokeWidth(0.5)
+          .color($r('sys.color.comp_divider'));
+        this.metadataSectionLabel('渲染');
+        this.metadataRow('几何预算', `${this.asset.estimatedTriangleCount} 三角面`);
       }
       .width('100%')
       .padding(18)

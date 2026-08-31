@@ -37,8 +37,9 @@ Foundation models.
 The SCP-131-A, SCP-3199 and SCP-650 entries are on-demand rows. Their immutable
 upstream GLBs are downloaded over HTTPS, checked against the manifest byte length
 and SHA-256, and retained only in the app-private archive cache. The viewer
-samples the named idle clip at runtime; deleting an entry removes only that
-private cache object.
+samples a reviewed named pose when one is configured; SCP-650 uses its authored
+neutral pose and keeps all runtime animation tracks disabled. Deleting an entry
+removes only that private cache object.
 
 Delivery policy: only reviewed classic seed objects are bundled. Other reviewed
 objects remain on demand and must pass the same fixed-source, license,
