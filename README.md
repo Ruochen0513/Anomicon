@@ -19,27 +19,37 @@
 
 ## 应用展示
 
-格异录把内容发现、系列浏览、原生阅读和三维查看串联在同一套交互中。下面预留了四个展示位，后续可以直接替换为真机截图。
+格异录把内容发现、系列浏览、原生阅读和三维查看串联在同一套交互中。
 
 <table>
   <tr>
     <td width="50%" align="center">
-      <img src="docs/images/showcase-explore.svg" width="280" alt="探索页截图占位">
+      <img src="docs/images/showcase-explore.jpg" width="280" alt="格异录探索页面">
       <br><strong>探索</strong><br><sub>从推荐与内容集合中发现感兴趣的条目</sub>
     </td>
     <td width="50%" align="center">
-      <img src="docs/images/showcase-catalog.svg" width="280" alt="图鉴页截图占位">
+      <img src="docs/images/showcase-catalog.jpg" width="280" alt="格异录图鉴页面">
       <br><strong>图鉴</strong><br><sub>按系列浏览、搜索并识别含三维档案的项目</sub>
     </td>
   </tr>
   <tr>
     <td width="50%" align="center">
-      <img src="docs/images/showcase-reader.svg" width="280" alt="阅读页截图占位">
-      <br><strong>阅读</strong><br><sub>使用原生排版阅读正文并保留阅读进度</sub>
+      <img src="docs/images/showcase-stories.jpg" width="280" alt="格异录故事页面">
+      <br><strong>故事</strong><br><sub>按标题或路径搜索，并通过字母索引快速筛选</sub>
     </td>
     <td width="50%" align="center">
-      <img src="docs/images/showcase-archive3d.svg" width="280" alt="三维档案截图占位">
-      <br><strong>三维档案</strong><br><sub>查看内置或按需下载的 SCP 三维模型</sub>
+      <img src="docs/images/showcase-terminal.jpg" width="280" alt="格异录终端页面">
+      <br><strong>终端</strong><br><sub>集中查看阅读等级、统计和保存在本地的个人资料</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/images/showcase-archive-gallery.jpg" width="280" alt="格异录三维档案馆页面">
+      <br><strong>三维档案馆</strong><br><sub>统一管理随应用提供或按需下载的模型资源</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/images/showcase-archive-detail.jpg" width="280" alt="格异录三维档案详情页面">
+      <br><strong>三维档案</strong><br><sub>查看模型、档案说明、资源来源与版本信息</sub>
     </td>
   </tr>
 </table>
