@@ -17,6 +17,33 @@
 - **三维档案**：使用 ArkGraphics3D 展示经过整理的 GLB 模型。经典项目可随应用提供，其余档案支持按需下载和删除。
 - **HarmonyOS 原生界面**：采用 ArkUI、HDS 导航和系统材质，适配深浅色主题、沉浸式页面与触感反馈。
 
+## 应用展示
+
+格异录把内容发现、系列浏览、原生阅读和三维查看串联在同一套交互中。下面预留了四个展示位，后续可以直接替换为真机截图。
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/images/showcase-explore.svg" width="280" alt="探索页截图占位">
+      <br><strong>探索</strong><br><sub>从推荐与内容集合中发现感兴趣的条目</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/images/showcase-catalog.svg" width="280" alt="图鉴页截图占位">
+      <br><strong>图鉴</strong><br><sub>按系列浏览、搜索并识别含三维档案的项目</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/images/showcase-reader.svg" width="280" alt="阅读页截图占位">
+      <br><strong>阅读</strong><br><sub>使用原生排版阅读正文并保留阅读进度</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/images/showcase-archive3d.svg" width="280" alt="三维档案截图占位">
+      <br><strong>三维档案</strong><br><sub>查看内置或按需下载的 SCP 三维模型</sub>
+    </td>
+  </tr>
+</table>
+
 ## 下载与安装
 
 请从项目发布页下载最新的 `.hap` 安装包。当前版本面向 HarmonyOS 6.0（API 26）设备，具体兼容范围和已知问题以对应版本的发布说明为准。
