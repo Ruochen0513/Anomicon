@@ -479,18 +479,15 @@ struct ScpArticlePage {
   }
 
   /**
-   * HDS `maxCount` is the number of source menu icons shown directly; the
-   * generated More affordance is added after those icons.  Keep only the
-   * primary actions in the title bar and send every secondary action to More.
+   * HDS `maxCount` is the total title-bar menu slot count, including the
+   * generated More affordance when source items overflow.  Reserve one slot
+   * for More and keep only the primary actions outside it.
    */
   private articleMenuMaxCount(): number {
-    // Only SCP object pages reserve the compact primary-action slots for the
-    // model affordance.  Tale pages retain their original three direct
-    // actions because there is no object-specific 3D action to prioritize.
-    if (this.contentKind !== LibraryContentKind.SCP) {
-      return 3;
-    }
-    return this.canOpenArchive3D() ? 2 : 1;
+    // Every article keeps 收藏 as its first-level action.  A reviewed SCP
+    // model gets one additional slot; browser and reading settings remain in
+    // HDS' generated More menu for both SCP and tale pages.
+    return this.canOpenArchive3D() ? 3 : 2;
   }
 
   private articleMenuItems(): HdsNavigationMenuItemOptions[] {
@@ -729,8 +726,8 @@ struct ScpArticlePage {
         },
         backIcon: { label: '返回', componentId: 'articleBackButton' },
         menu: {
-          // HDS 官方规则：maxCount 是直接显示的源菜单图标数，溢出项由
-          // 组件追加“更多”入口；因此有模型时设为 2，外露收藏 + 三维档案。
+          // HDS 当前实现会把“更多”本身计入 maxCount；因此无模型为 2
+          // （收藏 + 更多），有模型为 3（收藏 + 三维档案 + 更多）。
           value: this.articleMenuItems(),
           maxCount: this.articleMenuMaxCount()
         }
