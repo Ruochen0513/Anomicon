@@ -56,13 +56,13 @@
 
 ## 下载与安装
 
-请从项目发布页下载最新的 `.hap` 安装包。当前版本面向 HarmonyOS 6.0（API 26）设备，具体兼容范围和已知问题以对应版本的发布说明为准。
+请从项目发布页下载最新的 `.hap` 安装包。当前版本面向 HarmonyOS 7.0（API 26）设备，具体兼容范围和已知问题以对应版本的发布说明为准。
 
 安装来自应用市场以外的安装包时，系统可能要求确认安装来源。请只从本项目发布页获取文件，并在安装前核对发布说明中提供的版本与文件校验值。
 
 ## 技术实现
 
-- HarmonyOS SDK 6.0.0（API 26）
+- HarmonyOS SDK 7.0.0（API 26）
 - ArkTS / ArkUI
 - HDS（`@kit.UIDesignKit`）
 - ArkData RDB 与 Preferences
