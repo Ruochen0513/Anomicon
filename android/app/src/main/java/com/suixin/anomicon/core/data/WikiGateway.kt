@@ -56,7 +56,10 @@ class WikiGateway(
                 return@mapNotNull null
             }
             val parentText = link.parent()?.text().orEmpty()
-            val rawTitle = cleanCatalogTitle(stripIdPrefix(link.text().ifBlank { parentText }, id))
+            val linkTitle = cleanCatalogTitle(stripIdPrefix(link.text(), id))
+            val rawTitle = linkTitle.ifBlank {
+                cleanCatalogTitle(stripIdPrefix(parentText, id))
+            }
             CatalogEntry(
                 itemId = id,
                 title = rawTitle,

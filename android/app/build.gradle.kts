@@ -72,4 +72,6 @@ dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    testImplementation("junit:junit:4.13.2")
 }

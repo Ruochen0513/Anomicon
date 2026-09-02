@@ -60,6 +60,10 @@
 
 安装来自应用市场以外的安装包时，系统可能要求确认安装来源。请只从本项目发布页获取文件，并在安装前核对发布说明中提供的版本与文件校验值。
 
+## Android 迁移状态
+
+项目已新增独立 Android 子工程，位于 [`android/`](android/README.md)。Android 版采用 Kotlin、Jetpack Compose 与 Material 3，当前已接入探索、图鉴、故事、终端、设置、文章 WebView 阅读，以及三维档案清单/资源元数据。HarmonyOS 源码保持不变，Android 目标以增量平台方式维护。
+
 ## 技术实现
 
 - HarmonyOS SDK 7.0.0（API 26）
