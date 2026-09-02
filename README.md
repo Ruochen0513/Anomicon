@@ -62,7 +62,7 @@
 
 ## Android 迁移状态
 
-项目已新增独立 Android 子工程，位于 [`android/`](android/README.md)。Android 版采用 Kotlin、Jetpack Compose 与 Material 3，当前已接入探索、图鉴、故事、终端、设置、文章 WebView 阅读，以及三维档案清单/资源元数据。HarmonyOS 源码保持不变，Android 目标以增量平台方式维护。
+项目已新增独立 Android 子工程，位于 [`android/`](android/README.md)。Android 版采用 Kotlin、Jetpack Compose 与 Material 3，当前已接入探索、图鉴、故事、终端、设置、文章 WebView 阅读，以及基于 SceneView/Filament 的内置 GLB 三维档案渲染。HarmonyOS 源码保持不变，Android 目标以增量平台方式维护。
 
 ## 技术实现
 

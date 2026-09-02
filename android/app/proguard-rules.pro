@@ -1,2 +1,7 @@
 -keep class org.jsoup.** { *; }
 -dontwarn org.jsoup.**
+
+-keep class com.google.android.filament.** { *; }
+-keep class io.github.sceneview.** { *; }
+-dontwarn com.google.android.filament.**
+-dontwarn io.github.sceneview.**

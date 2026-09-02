@@ -9,7 +9,6 @@ import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -717,28 +716,12 @@ private fun ArchiveDetailScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Surface(
+                ArchiveModelViewer(
+                    asset = asset,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(220.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Outlined.ViewInAr, contentDescription = null, modifier = Modifier.size(48.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                if (asset.delivery == ArchiveAssetDelivery.Bundled) {
-                                    "GLB 已作为 Android assets 打包"
-                                } else {
-                                    "按需下载资源已保留来源信息"
-                                }
-                            )
-                        }
-                    }
-                }
+                        .height(260.dp)
+                )
             }
             item {
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
