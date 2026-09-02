@@ -1,12 +1,14 @@
 **/node_modules/
 **/oh_modules/
 **/build/
+**/.gradle/
 **/.hvigor/
 **/.test/
 **/BuildProfile.ets
 **/__pycache__/
 
 /local.properties
+**/local.properties
 **/build-profile.local.json5
 **/.env
 **/.env.*
