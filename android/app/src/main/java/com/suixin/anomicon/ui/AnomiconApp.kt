@@ -1,16 +1,12 @@
 package com.suixin.anomicon.ui
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import android.view.View
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -65,12 +63,15 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,11 +80,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.ContentScale
+import android.graphics.BitmapFactory
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.suixin.anomicon.core.data.AndroidLocalStore
 import com.suixin.anomicon.core.data.AnomiconRepository
 import com.suixin.anomicon.core.data.SeedData
 import com.suixin.anomicon.core.model.AppSettings
+import com.suixin.anomicon.core.model.ArticleBlock
+import com.suixin.anomicon.core.model.ArticleDocument
 import com.suixin.anomicon.core.model.ArchiveAsset
 import com.suixin.anomicon.core.model.ArchiveAssetDelivery
 import com.suixin.anomicon.core.model.CatalogEntry
@@ -100,6 +107,8 @@ import com.suixin.anomicon.core.model.ThemeMode
 import com.suixin.anomicon.core.model.articleUrlOf
 import com.suixin.anomicon.ui.theme.AnomiconTheme
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import java.io.File
 import java.util.Locale
 
 private enum class HomeTab(val title: String, val icon: ImageVector) {
@@ -151,9 +160,12 @@ fun AnomiconApp(
             activeContent != null -> ArticleScreen(
                 content = activeContent!!,
                 settings = settings,
+                repository = repository,
+                localStore = localStore,
                 favorite = library.favorites.any { it.key == activeContent!!.key },
                 onBack = { activeContent = null },
                 onToggleFavorite = { toggleFavorite(activeContent!!) },
+                onLibraryChanged = { library = it },
                 onOpenArchive = { asset -> activeArchive = asset }
             )
             showSettings -> SettingsScreen(
@@ -490,9 +502,12 @@ private fun TerminalScreen(
 private fun ArticleScreen(
     content: ContentRef,
     settings: AppSettings,
+    repository: AnomiconRepository,
+    localStore: AndroidLocalStore,
     favorite: Boolean,
     onBack: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onLibraryChanged: (LibrarySnapshot) -> Unit,
     onOpenArchive: (ArchiveAsset) -> Unit
 ) {
     BackHandler(onBack = onBack)
@@ -524,9 +539,12 @@ private fun ArticleScreen(
             )
         }
     ) { padding ->
-        ArticleWebView(
-            url = articleUrlOf(content.id),
+        NativeArticleReader(
+            content = content,
             settings = settings,
+            repository = repository,
+            localStore = localStore,
+            onLibraryChanged = onLibraryChanged,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -534,36 +552,273 @@ private fun ArticleScreen(
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun ArticleWebView(
-    url: String,
+private fun NativeArticleReader(
+    content: ContentRef,
     settings: AppSettings,
+    repository: AnomiconRepository,
+    localStore: AndroidLocalStore,
+    onLibraryChanged: (LibrarySnapshot) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            WebView(context).apply {
-                webViewClient = WebViewClient()
-                this.settings.javaScriptEnabled = true
-                this.settings.domStorageEnabled = true
-                this.settings.loadWithOverviewMode = true
-                this.settings.useWideViewPort = true
-                this.settings.textZoom = (settings.fontSize / ReadingSettingsRange.DefaultFontSize * 100f).toInt()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+    var document by remember(content.key) { mutableStateOf<ArticleDocument?>(null) }
+    var errorMessage by remember(content.key) { mutableStateOf<String?>(null) }
+    var loading by remember(content.key) { mutableStateOf(true) }
+    var previewFile by remember(content.key) { mutableStateOf<File?>(null) }
+    var retryToken by remember(content.key) { mutableStateOf(0) }
+    val listState = rememberLazyListState()
+    val context = LocalContext.current
+
+    LaunchedEffect(content.key, retryToken) {
+        loading = true
+        repository.loadArticle(content).fold(
+            onSuccess = {
+                document = it
+                errorMessage = null
+                val checkpoint = localStore.loadLibrary().history
+                    .firstOrNull { entry -> entry.content.key == content.key }
+                    ?.scrollOffset
+                    ?.coerceIn(0, (it.blocks.size - 1).coerceAtLeast(0))
+                    ?: 0
+                if (it.blocks.isNotEmpty() && checkpoint > 0) {
+                    listState.scrollToItem(checkpoint)
                 }
-                loadUrl(url)
+            },
+            onFailure = { errorMessage = it.message ?: "文章加载失败" }
+        )
+        loading = false
+    }
+
+    LaunchedEffect(content.key, listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .distinctUntilChanged()
+            .collect { index ->
+                onLibraryChanged(localStore.recordRead(content, index))
             }
-        },
-        update = { webView ->
-            webView.settings.textZoom = (settings.fontSize / ReadingSettingsRange.DefaultFontSize * 100f).toInt()
-            if (webView.url != url) {
-                webView.loadUrl(url)
+    }
+
+    DisposableEffect(content.key) {
+        onDispose {
+            onLibraryChanged(localStore.recordRead(content, listState.firstVisibleItemIndex))
+        }
+    }
+
+    Box(modifier) {
+        when {
+            loading && document == null -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.7f))
+                }
+            }
+            document == null -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)
+                ) {
+                    Text(errorMessage ?: "文章暂时不可用", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "联网后重试，或打开 Wiki 原文。",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = {
+                            loading = true
+                            errorMessage = null
+                            retryToken += 1
+                        }) {
+                            Text("重试")
+                        }
+                        OutlinedButton(onClick = { openUrl(context, articleUrlOf(content.id)) }) {
+                            Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null)
+                            Spacer(Modifier.width(6.dp))
+                            Text("原文")
+                        }
+                    }
+                }
+            }
+            else -> {
+                val currentDocument = document!!
+                val progress = if (currentDocument.blocks.size <= 1) {
+                    1f
+                } else {
+                    listState.firstVisibleItemIndex.toFloat() /
+                        (currentDocument.blocks.lastIndex).coerceAtLeast(1)
+                }
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LinearProgressIndicator(
+                                progress = { progress.coerceIn(0f, 1f) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = "原生阅读 · ${currentDocument.blocks.size} 个内容块",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    itemsIndexed(
+                        items = currentDocument.blocks,
+                        key = { index, _ -> "${currentDocument.content.key}:$index" }
+                    ) { _, block ->
+                        ArticleBlockView(
+                            block = block,
+                            settings = settings,
+                            repository = repository,
+                            onImageLoaded = { previewFile = it }
+                        )
+                    }
+                    item {
+                        Text(
+                            "内容来自 SCP Wiki 缓存；图片按需缓存到本机。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
+
+        if (loading && document != null) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+            )
+        }
+    }
+
+    previewFile?.let { file ->
+        val bitmap = remember(file) { BitmapFactory.decodeFile(file.path)?.asImageBitmap() }
+        Dialog(
+            onDismissRequest = { previewFile = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = "文章图片预览",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { previewFile = null }
+                            .padding(12.dp)
+                    )
+                } else {
+                    Text("图片无法解码", modifier = Modifier.padding(24.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArticleBlockView(
+    block: ArticleBlock,
+    settings: AppSettings,
+    repository: AnomiconRepository,
+    onImageLoaded: (File) -> Unit
+) {
+    val bodyStyle = MaterialTheme.typography.bodyLarge.copy(
+        fontSize = settings.fontSize.sp,
+        lineHeight = (settings.fontSize * settings.lineHeightMultiple).sp
     )
+    when (block) {
+        is ArticleBlock.Heading -> Text(
+            text = block.text,
+            style = when (block.level) {
+                1 -> MaterialTheme.typography.headlineSmall
+                2 -> MaterialTheme.typography.titleLarge
+                else -> MaterialTheme.typography.titleMedium
+            },
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = if (block.level <= 2) 10.dp else 4.dp)
+        )
+        is ArticleBlock.Paragraph -> Text(block.text, style = bodyStyle)
+        is ArticleBlock.Quote -> Surface(
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(block.text, style = bodyStyle, modifier = Modifier.padding(14.dp))
+        }
+        is ArticleBlock.ListBlock -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            block.items.forEachIndexed { index, item ->
+                Text(
+                    text = if (block.ordered) "${index + 1}. $item" else "• $item",
+                    style = bodyStyle,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        }
+        is ArticleBlock.Image -> CachedArticleImage(
+            image = block,
+            repository = repository,
+            onImageLoaded = onImageLoaded
+        )
+        ArticleBlock.Divider -> HorizontalDivider()
+    }
+}
+
+@Composable
+private fun CachedArticleImage(
+    image: ArticleBlock.Image,
+    repository: AnomiconRepository,
+    onImageLoaded: (File) -> Unit
+) {
+    var imageFile by remember(image.url) { mutableStateOf<File?>(null) }
+    var failed by remember(image.url) { mutableStateOf(false) }
+    LaunchedEffect(image.url) {
+        repository.loadImageFile(image.url).fold(
+            onSuccess = {
+                imageFile = it
+                onImageLoaded(it)
+            },
+            onFailure = { failed = true }
+        )
+    }
+    val bitmap = remember(imageFile) {
+        imageFile?.let { BitmapFactory.decodeFile(it.path)?.asImageBitmap() }
+    }
+    when {
+        bitmap != null -> Image(
+            bitmap = bitmap,
+            contentDescription = image.alt.ifBlank { "文章图片" },
+            contentScale = ContentScale.FillWidth,
+                modifier = Modifier
+                    .fillMaxWidth()
+                .clickable { imageFile?.let(onImageLoaded) }
+        )
+        failed -> Text(
+            text = image.alt.ifBlank { "图片暂时不可用" },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        else -> Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.6f))
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
