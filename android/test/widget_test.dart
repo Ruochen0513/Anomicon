@@ -1,30 +1,37 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:anomicon/main.dart';
+import 'package:anomicon/src/anomicon_app.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('renders Harmony-style bottom navigation', (WidgetTester tester) async {
+    var selectedTab = HomeTab.explore;
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(
+            child: Material(
+              color: Colors.transparent,
+              child: GlassBottomBar(
+                selectedTab: selectedTab,
+                onSelectTab: (tab) => selectedTab = tab,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    expect(find.text('探索'), findsOneWidget);
+    expect(find.text('图鉴'), findsOneWidget);
+    expect(find.text('故事'), findsOneWidget);
+    expect(find.text('终端'), findsOneWidget);
+
+    await tester.tap(find.text('图鉴'));
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(selectedTab, HomeTab.catalog);
   });
 }
