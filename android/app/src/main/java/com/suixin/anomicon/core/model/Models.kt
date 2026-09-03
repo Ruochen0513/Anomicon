@@ -1,6 +1,8 @@
 package com.suixin.anomicon.core.model
 
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
@@ -178,13 +180,86 @@ data class ReadingHistoryEntry(
     val content: ContentRef,
     val openedAt: Long,
     val lastReadAt: Long,
-    val scrollOffset: Int = 0
+    val scrollOffset: Int = 0,
+    val blockCount: Int = 0,
+    val activeMs: Long = 0L
 )
 
 data class LibrarySnapshot(
     val favorites: List<ContentRef> = emptyList(),
-    val history: List<ReadingHistoryEntry> = emptyList()
+    val history: List<ReadingHistoryEntry> = emptyList(),
+    val activitySegments: List<ResearchActivitySegment> = emptyList()
 )
+
+data class ResearchActivitySegment(
+    val segmentId: String,
+    val content: ContentRef,
+    val startedAt: Long,
+    val endedAt: Long,
+    val activeMs: Long,
+    val lastOffset: Int = 0
+)
+
+enum class ResearchRankTitle(val label: String) {
+    Visitor("初访者"),
+    Retriever("检索者"),
+    Reader("研读者"),
+    Cataloger("编目者"),
+    Researcher("考据者"),
+    Archivist("典藏者")
+}
+
+data class ResearchDailyProgress(
+    val day: LocalDate,
+    val activeMs: Long
+)
+
+data class ResearchContentProgress(
+    val content: ContentRef,
+    val activeMs: Long,
+    val researched: Boolean
+)
+
+data class ResearchProgress(
+    val rawActiveMs: Long,
+    val creditedActiveMs: Long,
+    val todayActiveMs: Long,
+    val researchedContentCount: Int,
+    val experience: Int,
+    val level: Int,
+    val rankTitle: ResearchRankTitle,
+    val levelThreshold: Int,
+    val nextLevelThreshold: Int,
+    val levelExperience: Int,
+    val levelExperienceTarget: Int,
+    val daily: List<ResearchDailyProgress>,
+    val contents: List<ResearchContentProgress>
+) {
+    val levelProgressPercent: Float =
+        if (levelExperienceTarget <= 0) 1f else (levelExperience.toFloat() / levelExperienceTarget).coerceIn(0f, 1f)
+}
+
+private data class ResearchDaySlice(
+    val content: ContentRef,
+    val day: LocalDate,
+    val startedAt: Long,
+    val endedAt: Long,
+    val activeMs: Long
+)
+
+private data class CreditedResearchSlice(
+    val content: ContentRef,
+    val day: LocalDate,
+    val startedAt: Long,
+    val activeMs: Long
+)
+
+const val ResearchMinuteMs: Long = 60_000L
+const val ResearchDailyCapMinutes: Long = 180L
+const val ResearchDailyCapMs: Long = ResearchDailyCapMinutes * ResearchMinuteMs
+const val ResearchedContentMinMs: Long = ResearchMinuteMs
+const val ResearchedContentReward: Int = 8
+const val ResearchMaxLevel: Int = 50
 
 val ScpSeriesDescriptors: List<CatalogSeriesDescriptor> =
     buildList {
@@ -217,4 +292,175 @@ fun normalizeFontSize(value: Float): Float {
 fun normalizeLineHeight(value: Float): Float {
     if (!value.isFinite()) return ReadingSettingsRange.DefaultLineHeight
     return round(max(ReadingSettingsRange.MinLineHeight, min(ReadingSettingsRange.MaxLineHeight, value)) * 1000f) / 1000f
+}
+
+fun normalizeResearchDuration(value: Long): Long =
+    if (value <= 0L) 0L else value
+
+fun normalizeReadingOffset(value: Int): Int =
+    value.coerceAtLeast(0)
+
+fun normalizeReadingBlockCount(value: Int): Int =
+    value.coerceAtLeast(0)
+
+fun readingProgressPercent(entry: ReadingHistoryEntry): Float =
+    if (entry.blockCount <= 1) {
+        0f
+    } else {
+        entry.scrollOffset.toFloat()
+            .div((entry.blockCount - 1).coerceAtLeast(1))
+            .coerceIn(0f, 1f)
+    }
+
+fun deriveResearchProgress(
+    segments: List<ResearchActivitySegment>,
+    now: Long = System.currentTimeMillis(),
+    zoneId: ZoneId = ZoneId.systemDefault()
+): ResearchProgress {
+    val normalizedSegments = segments
+        .filter { it.activeMs > 0L }
+        .map {
+            it.copy(
+                startedAt = normalizeResearchDuration(it.startedAt),
+                endedAt = max(normalizeResearchDuration(it.startedAt), normalizeResearchDuration(it.endedAt)),
+                activeMs = normalizeResearchDuration(it.activeMs),
+                lastOffset = normalizeReadingOffset(it.lastOffset)
+            )
+        }
+    val rawActiveMs = normalizedSegments.sumOf { it.activeMs }
+    val credited = creditResearchSegments(normalizedSegments, zoneId)
+    val creditedActiveMs = credited.sumOf { it.activeMs }
+    val daily = credited
+        .groupBy { it.day }
+        .map { (day, slices) -> ResearchDailyProgress(day, slices.sumOf { it.activeMs }) }
+        .sortedByDescending { it.day }
+    val today = Instant.ofEpochMilli(normalizeResearchDuration(now)).atZone(zoneId).toLocalDate()
+    val todayActiveMs = daily.firstOrNull { it.day == today }?.activeMs ?: 0L
+    val contents = credited
+        .groupBy { it.content.key }
+        .map { (_, slices) ->
+            val activeMs = slices.sumOf { it.activeMs }
+            ResearchContentProgress(
+                content = slices.first().content,
+                activeMs = activeMs,
+                researched = activeMs >= ResearchedContentMinMs
+            )
+        }
+        .sortedWith(
+            compareByDescending<ResearchContentProgress> { it.activeMs }
+                .thenBy { it.content.key }
+        )
+    val researchedContentCount = contents.count { it.researched }
+    val experience = ((creditedActiveMs / ResearchMinuteMs) + researchedContentCount * ResearchedContentReward)
+        .coerceAtMost(Int.MAX_VALUE.toLong())
+        .toInt()
+    val level = researchLevelForExperience(experience)
+    val levelThreshold = researchExperienceThreshold(level)
+    val nextLevelThreshold = if (level >= ResearchMaxLevel) {
+        levelThreshold
+    } else {
+        researchExperienceThreshold(level + 1)
+    }
+    return ResearchProgress(
+        rawActiveMs = rawActiveMs,
+        creditedActiveMs = creditedActiveMs,
+        todayActiveMs = todayActiveMs,
+        researchedContentCount = researchedContentCount,
+        experience = experience,
+        level = level,
+        rankTitle = researchRankTitleForLevel(level),
+        levelThreshold = levelThreshold,
+        nextLevelThreshold = nextLevelThreshold,
+        levelExperience = experience - levelThreshold,
+        levelExperienceTarget = if (level >= ResearchMaxLevel) 0 else nextLevelThreshold - levelThreshold,
+        daily = daily,
+        contents = contents
+    )
+}
+
+fun researchExperienceThreshold(level: Int): Int {
+    val normalizedLevel = level.coerceIn(1, ResearchMaxLevel)
+    return 8 * (normalizedLevel - 1) * (normalizedLevel - 1)
+}
+
+fun researchLevelForExperience(experience: Int): Int {
+    val normalizedExperience = experience.coerceAtLeast(0)
+    var level = 1
+    for (candidate in 2..ResearchMaxLevel) {
+        if (normalizedExperience < researchExperienceThreshold(candidate)) {
+            break
+        }
+        level = candidate
+    }
+    return level
+}
+
+fun researchRankTitleForLevel(level: Int): ResearchRankTitle {
+    val normalizedLevel = level.coerceIn(1, ResearchMaxLevel)
+    return when {
+        normalizedLevel >= 50 -> ResearchRankTitle.Archivist
+        normalizedLevel >= 35 -> ResearchRankTitle.Researcher
+        normalizedLevel >= 20 -> ResearchRankTitle.Cataloger
+        normalizedLevel >= 10 -> ResearchRankTitle.Reader
+        normalizedLevel >= 5 -> ResearchRankTitle.Retriever
+        else -> ResearchRankTitle.Visitor
+    }
+}
+
+private fun creditResearchSegments(
+    segments: List<ResearchActivitySegment>,
+    zoneId: ZoneId
+): List<CreditedResearchSlice> {
+    val usedByDay = mutableMapOf<LocalDate, Long>()
+    return segments
+        .flatMap { splitResearchSegmentByDay(it, zoneId) }
+        .sortedWith(compareBy<ResearchDaySlice> { it.day }.thenBy { it.startedAt })
+        .mapNotNull { slice ->
+            val used = usedByDay[slice.day] ?: 0L
+            val remaining = (ResearchDailyCapMs - used).coerceAtLeast(0L)
+            val creditedMs = min(slice.activeMs, remaining)
+            if (creditedMs <= 0L) {
+                null
+            } else {
+                usedByDay[slice.day] = used + creditedMs
+                CreditedResearchSlice(slice.content, slice.day, slice.startedAt, creditedMs)
+            }
+        }
+}
+
+private fun splitResearchSegmentByDay(
+    segment: ResearchActivitySegment,
+    zoneId: ZoneId
+): List<ResearchDaySlice> {
+    val activeMs = normalizeResearchDuration(segment.activeMs)
+    if (activeMs == 0L) return emptyList()
+    val startedAt = normalizeResearchDuration(segment.startedAt)
+    val endedAt = max(startedAt, normalizeResearchDuration(segment.endedAt))
+    val startDay = Instant.ofEpochMilli(startedAt).atZone(zoneId).toLocalDate()
+    if (endedAt <= startedAt) {
+        return listOf(ResearchDaySlice(segment.content, startDay, startedAt, endedAt, activeMs))
+    }
+
+    val wallSpan = endedAt - startedAt
+    val slices = mutableListOf<ResearchDaySlice>()
+    var cursor = startedAt
+    var allocated = 0L
+    while (cursor < endedAt) {
+        val cursorDateTime = Instant.ofEpochMilli(cursor).atZone(zoneId)
+        val day = cursorDateTime.toLocalDate()
+        val nextDayStart = day.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val sliceEndAt = min(endedAt, nextDayStart)
+        val isLast = sliceEndAt >= endedAt
+        val sliceActiveMs = if (isLast) {
+            activeMs - allocated
+        } else {
+            (activeMs * ((sliceEndAt - cursor).toDouble() / wallSpan)).toLong()
+        }
+        if (sliceActiveMs > 0L) {
+            slices += ResearchDaySlice(segment.content, day, cursor, sliceEndAt, sliceActiveMs)
+            allocated += sliceActiveMs
+        }
+        cursor = sliceEndAt
+    }
+    return slices
 }

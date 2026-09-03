@@ -101,14 +101,20 @@ import com.suixin.anomicon.core.model.ExploreEntry
 import com.suixin.anomicon.core.model.ExploreHomeData
 import com.suixin.anomicon.core.model.LibrarySnapshot
 import com.suixin.anomicon.core.model.ReadingSettingsRange
+import com.suixin.anomicon.core.model.ReadingHistoryEntry
+import com.suixin.anomicon.core.model.ResearchProgress
 import com.suixin.anomicon.core.model.ScpSeriesDescriptors
 import com.suixin.anomicon.core.model.TaleEntry
 import com.suixin.anomicon.core.model.ThemeMode
 import com.suixin.anomicon.core.model.articleUrlOf
+import com.suixin.anomicon.core.model.deriveResearchProgress
+import com.suixin.anomicon.core.model.readingProgressPercent
 import com.suixin.anomicon.ui.theme.AnomiconTheme
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.io.File
+import java.text.DateFormat
+import java.util.Date
 import java.util.Locale
 
 private enum class HomeTab(val title: String, val icon: ImageVector) {
@@ -136,12 +142,19 @@ fun AnomiconApp(
         ThemeMode.Light -> false
         ThemeMode.Dark -> true
     }
+    val hapticFeedback = rememberAndroidHapticFeedback()
+    val androidView = currentAndroidView()
+    val playSelection: () -> Unit = {
+        hapticFeedback.playSelection(settings.hapticEnabled, androidView)
+    }
 
     val openContent: (ContentRef) -> Unit = { content ->
+        playSelection()
         library = localStore.recordRead(content)
         activeContent = content
     }
     val toggleFavorite: (ContentRef) -> Unit = { content ->
+        playSelection()
         library = localStore.toggleFavorite(content)
     }
     val saveSettings: (AppSettings) -> Unit = { next ->
@@ -151,12 +164,20 @@ fun AnomiconApp(
     }
 
     AnomiconTheme(darkTheme = darkTheme) {
+        ApplyAndroidSystemBars(
+            immersiveMaterialEnabled = settings.immersiveMaterialEnabled,
+            darkTheme = darkTheme
+        )
         when {
             activeArchive != null -> ArchiveDetailScreen(
                 asset = activeArchive!!,
                 repository = repository,
-                onBack = { activeArchive = null },
-                onOpenArticle = { openContent(activeArchive!!.contentRef) }
+                onBack = {
+                    playSelection()
+                    activeArchive = null
+                },
+                onOpenArticle = { openContent(activeArchive!!.contentRef) },
+                onHaptic = playSelection
             )
             activeContent != null -> ArticleScreen(
                 content = activeContent!!,
@@ -164,31 +185,59 @@ fun AnomiconApp(
                 repository = repository,
                 localStore = localStore,
                 favorite = library.favorites.any { it.key == activeContent!!.key },
-                onBack = { activeContent = null },
+                onBack = {
+                    playSelection()
+                    activeContent = null
+                },
                 onToggleFavorite = { toggleFavorite(activeContent!!) },
                 onLibraryChanged = { library = it },
-                onOpenArchive = { asset -> activeArchive = asset }
+                onOpenArchive = { asset ->
+                    playSelection()
+                    activeArchive = asset
+                },
+                onHaptic = playSelection
             )
             showSettings -> SettingsScreen(
                 settings = settings,
-                onBack = { showSettings = false },
-                onSettingsChange = saveSettings
+                onBack = {
+                    playSelection()
+                    showSettings = false
+                },
+                onSettingsChange = saveSettings,
+                onHaptic = playSelection
             )
             showArchiveGallery -> ArchiveGalleryScreen(
                 repository = repository,
-                onBack = { showArchiveGallery = false },
-                onOpenAsset = { asset -> activeArchive = asset },
-                onOpenArticle = openContent
+                onBack = {
+                    playSelection()
+                    showArchiveGallery = false
+                },
+                onOpenAsset = { asset ->
+                    playSelection()
+                    activeArchive = asset
+                },
+                onOpenArticle = openContent,
+                onHaptic = playSelection
             )
             else -> HomeScaffold(
                 repository = repository,
                 selectedTab = selectedTab,
                 library = library,
-                onSelectTab = { selectedTab = it },
-                onOpenSettings = { showSettings = true },
-                onOpenArchiveGallery = { showArchiveGallery = true },
+                onSelectTab = {
+                    playSelection()
+                    selectedTab = it
+                },
+                onOpenSettings = {
+                    playSelection()
+                    showSettings = true
+                },
+                onOpenArchiveGallery = {
+                    playSelection()
+                    showArchiveGallery = true
+                },
                 onOpenContent = openContent,
-                onToggleFavorite = toggleFavorite
+                onToggleFavorite = toggleFavorite,
+                onHaptic = playSelection
             )
         }
     }
@@ -204,7 +253,8 @@ private fun HomeScaffold(
     onOpenSettings: () -> Unit,
     onOpenArchiveGallery: () -> Unit,
     onOpenContent: (ContentRef) -> Unit,
-    onToggleFavorite: (ContentRef) -> Unit
+    onToggleFavorite: (ContentRef) -> Unit,
+    onHaptic: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -235,7 +285,7 @@ private fun HomeScaffold(
     ) { padding ->
         when (selectedTab) {
             HomeTab.Explore -> ExploreScreen(repository, padding, onOpenContent)
-            HomeTab.Catalog -> CatalogScreen(repository, padding, onOpenContent)
+            HomeTab.Catalog -> CatalogScreen(repository, padding, onOpenContent, onHaptic)
             HomeTab.Stories -> StoriesScreen(repository, padding, onOpenContent)
             HomeTab.Terminal -> TerminalScreen(library, padding, onOpenContent, onToggleFavorite)
         }
@@ -320,7 +370,8 @@ private fun ExploreScreen(
 private fun CatalogScreen(
     repository: AnomiconRepository,
     padding: PaddingValues,
-    onOpenContent: (ContentRef) -> Unit
+    onOpenContent: (ContentRef) -> Unit,
+    onHaptic: () -> Unit
 ) {
     var selectedSeriesId by remember { mutableStateOf(ScpSeriesDescriptors.first().id) }
     var query by remember { mutableStateOf("") }
@@ -345,7 +396,10 @@ private fun CatalogScreen(
             items(ScpSeriesDescriptors) { series ->
                 FilterChip(
                     selected = selectedSeriesId == series.id,
-                    onClick = { selectedSeriesId = series.id },
+                    onClick = {
+                        onHaptic()
+                        selectedSeriesId = series.id
+                    },
                     label = { Text(series.label) }
                 )
             }
@@ -449,6 +503,14 @@ private fun TerminalScreen(
     onOpenContent: (ContentRef) -> Unit,
     onToggleFavorite: (ContentRef) -> Unit
 ) {
+    val researchProgress = remember(library.activitySegments) {
+        deriveResearchProgress(library.activitySegments)
+    }
+    val resumeEntry = library.history.firstOrNull { it.scrollOffset > 0 }
+    val resumeKey = resumeEntry?.content?.key
+    val recentEntries = library.history
+        .filter { it.content.key != resumeKey }
+        .take(30)
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -457,19 +519,33 @@ private fun TerminalScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("研究档案", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text(
-                        "收藏 ${library.favorites.size} 项 · 阅读记录 ${library.history.size} 条",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        rankLabel(library.history.size, library.favorites.size),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+            ResearchProfileSummaryCard(
+                progress = researchProgress,
+                favoriteCount = library.favorites.size,
+                historyCount = library.history.size
+            )
+        }
+        item { SectionHeader(title = "继续阅读", subtitle = "优先显示仍有阅读进度的最近条目。") }
+        if (resumeEntry == null) {
+            item { EmptyState("暂无可继续的条目。读到正文中段后会自动出现在这里。") }
+        } else {
+            item {
+                ReadingHistoryRow(
+                    entry = resumeEntry,
+                    onOpen = { onOpenContent(resumeEntry.content) }
+                )
+            }
+        }
+        item { SectionHeader(title = "活跃阅读", subtitle = "按已计分阅读时长排序，1 分钟以上计入已研读。") }
+        if (researchProgress.contents.isEmpty()) {
+            item { EmptyState("还没有可计分的阅读活动。打开文章并阅读片刻即可生成档案。") }
+        } else {
+            items(researchProgress.contents.take(5)) { contentProgress ->
+                ContentRefRow(
+                    content = contentProgress.content,
+                    subtitle = "${formatDuration(contentProgress.activeMs)} · ${if (contentProgress.researched) "已研读" else "浏览中"}",
+                    onOpen = { onOpenContent(contentProgress.content) }
+                )
             }
         }
         item { SectionHeader(title = "收藏", subtitle = "保存在本机 SharedPreferences。") }
@@ -488,12 +564,12 @@ private fun TerminalScreen(
                 )
             }
         }
-        item { SectionHeader(title = "最近阅读", subtitle = "打开文章时自动记录。") }
-        if (library.history.isEmpty()) {
+        item { SectionHeader(title = "最近阅读", subtitle = "打开文章时自动记录位置、进度和活跃时长。") }
+        if (recentEntries.isEmpty()) {
             item { EmptyState("暂无阅读记录。") }
         } else {
-            items(library.history.take(30)) { entry ->
-                ContentRefRow(content = entry.content, onOpen = { onOpenContent(entry.content) })
+            items(recentEntries) { entry ->
+                ReadingHistoryRow(entry = entry, onOpen = { onOpenContent(entry.content) })
             }
         }
     }
@@ -510,7 +586,8 @@ private fun ArticleScreen(
     onBack: () -> Unit,
     onToggleFavorite: () -> Unit,
     onLibraryChanged: (LibrarySnapshot) -> Unit,
-    onOpenArchive: (ArchiveAsset) -> Unit
+    onOpenArchive: (ArchiveAsset) -> Unit,
+    onHaptic: () -> Unit
 ) {
     BackHandler(onBack = onBack)
     val archiveAsset = SeedData.archiveAssetFor(content.id)
@@ -545,11 +622,12 @@ private fun ArticleScreen(
             content = content,
             settings = settings,
             repository = repository,
-            localStore = localStore,
-            onLibraryChanged = onLibraryChanged,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                localStore = localStore,
+                onLibraryChanged = onLibraryChanged,
+                onHaptic = onHaptic,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
         )
     }
 }
@@ -561,6 +639,7 @@ private fun NativeArticleReader(
     repository: AnomiconRepository,
     localStore: AndroidLocalStore,
     onLibraryChanged: (LibrarySnapshot) -> Unit,
+    onHaptic: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var document by remember(content.key) { mutableStateOf<ArticleDocument?>(null) }
@@ -585,6 +664,13 @@ private fun NativeArticleReader(
                 if (it.blocks.isNotEmpty() && checkpoint > 0) {
                     listState.scrollToItem(checkpoint)
                 }
+                onLibraryChanged(
+                    localStore.recordRead(
+                        content = content,
+                        scrollOffset = checkpoint,
+                        blockCount = it.blocks.size
+                    )
+                )
             },
             onFailure = { errorMessage = it.message ?: "文章加载失败" }
         )
@@ -595,13 +681,27 @@ private fun NativeArticleReader(
         snapshotFlow { listState.firstVisibleItemIndex }
             .distinctUntilChanged()
             .collect { index ->
-                onLibraryChanged(localStore.recordRead(content, index))
+                onLibraryChanged(
+                    localStore.recordRead(
+                        content = content,
+                        scrollOffset = index,
+                        blockCount = document?.blocks?.size,
+                        creditActiveTime = true
+                    )
+                )
             }
     }
 
     DisposableEffect(content.key) {
         onDispose {
-            onLibraryChanged(localStore.recordRead(content, listState.firstVisibleItemIndex))
+            onLibraryChanged(
+                localStore.recordRead(
+                    content = content,
+                    scrollOffset = listState.firstVisibleItemIndex,
+                    blockCount = document?.blocks?.size,
+                    creditActiveTime = true
+                )
+            )
         }
     }
 
@@ -627,13 +727,17 @@ private fun NativeArticleReader(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = {
+                            onHaptic()
                             loading = true
                             errorMessage = null
                             retryToken += 1
                         }) {
                             Text("重试")
                         }
-                        OutlinedButton(onClick = { openUrl(context, articleUrlOf(content.id)) }) {
+                        OutlinedButton(onClick = {
+                            onHaptic()
+                            openUrl(context, articleUrlOf(content.id))
+                        }) {
                             Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null)
                             Spacer(Modifier.width(6.dp))
                             Text("原文")
@@ -676,7 +780,8 @@ private fun NativeArticleReader(
                             block = block,
                             settings = settings,
                             repository = repository,
-                            onImageLoaded = { previewFile = it }
+                            onImageLoaded = { previewFile = it },
+                            onHaptic = onHaptic
                         )
                     }
                     item {
@@ -719,7 +824,10 @@ private fun NativeArticleReader(
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { previewFile = null }
+                            .clickable {
+                                onHaptic()
+                                previewFile = null
+                            }
                             .padding(12.dp)
                     )
                 } else {
@@ -735,7 +843,8 @@ private fun ArticleBlockView(
     block: ArticleBlock,
     settings: AppSettings,
     repository: AnomiconRepository,
-    onImageLoaded: (File) -> Unit
+    onImageLoaded: (File) -> Unit,
+    onHaptic: () -> Unit
 ) {
     val bodyStyle = MaterialTheme.typography.bodyLarge.copy(
         fontSize = settings.fontSize.sp,
@@ -772,7 +881,8 @@ private fun ArticleBlockView(
         is ArticleBlock.Image -> CachedArticleImage(
             image = block,
             repository = repository,
-            onImageLoaded = onImageLoaded
+            onImageLoaded = onImageLoaded,
+            onHaptic = onHaptic
         )
         ArticleBlock.Divider -> HorizontalDivider()
     }
@@ -782,7 +892,8 @@ private fun ArticleBlockView(
 private fun CachedArticleImage(
     image: ArticleBlock.Image,
     repository: AnomiconRepository,
-    onImageLoaded: (File) -> Unit
+    onImageLoaded: (File) -> Unit,
+    onHaptic: () -> Unit
 ) {
     var imageFile by remember(image.url) { mutableStateOf<File?>(null) }
     var failed by remember(image.url) { mutableStateOf(false) }
@@ -805,7 +916,10 @@ private fun CachedArticleImage(
             contentScale = ContentScale.FillWidth,
                 modifier = Modifier
                     .fillMaxWidth()
-                .clickable { imageFile?.let(onImageLoaded) }
+                .clickable {
+                    onHaptic()
+                    imageFile?.let(onImageLoaded)
+                }
         )
         failed -> Text(
             text = image.alt.ifBlank { "图片暂时不可用" },
@@ -828,7 +942,8 @@ private fun CachedArticleImage(
 private fun SettingsScreen(
     settings: AppSettings,
     onBack: () -> Unit,
-    onSettingsChange: (AppSettings) -> Unit
+    onSettingsChange: (AppSettings) -> Unit,
+    onHaptic: () -> Unit
 ) {
     BackHandler(onBack = onBack)
     Scaffold(
@@ -856,7 +971,10 @@ private fun SettingsScreen(
                 ThemeMode.entries.forEach { mode ->
                     FilterChip(
                         selected = settings.themeMode == mode,
-                        onClick = { onSettingsChange(settings.copy(themeMode = mode)) },
+                        onClick = {
+                            onHaptic()
+                            onSettingsChange(settings.copy(themeMode = mode))
+                        },
                         label = {
                             Text(
                                 when (mode) {
@@ -873,13 +991,19 @@ private fun SettingsScreen(
                 title = "触感反馈",
                 subtitle = "保留 HarmonyOS 版本中的触感开关语义。",
                 checked = settings.hapticEnabled,
-                onCheckedChange = { onSettingsChange(settings.copy(hapticEnabled = it)) }
+                onCheckedChange = {
+                    onHaptic()
+                    onSettingsChange(settings.copy(hapticEnabled = it))
+                }
             )
             SettingSwitch(
                 title = "沉浸材质",
                 subtitle = "Android MVP 先记录设置，后续可映射到动态色/模糊背景。",
                 checked = settings.immersiveMaterialEnabled,
-                onCheckedChange = { onSettingsChange(settings.copy(immersiveMaterialEnabled = it)) }
+                onCheckedChange = {
+                    onHaptic()
+                    onSettingsChange(settings.copy(immersiveMaterialEnabled = it))
+                }
             )
             SettingSlider(
                 title = "阅读字号",
@@ -905,7 +1029,8 @@ private fun ArchiveGalleryScreen(
     repository: AnomiconRepository,
     onBack: () -> Unit,
     onOpenAsset: (ArchiveAsset) -> Unit,
-    onOpenArticle: (ContentRef) -> Unit
+    onOpenArticle: (ContentRef) -> Unit,
+    onHaptic: () -> Unit
 ) {
     BackHandler(onBack = onBack)
     var filter by remember { mutableStateOf<ArchiveAssetDelivery?>(ArchiveAssetDelivery.Bundled) }
@@ -933,9 +1058,30 @@ private fun ArchiveGalleryScreen(
         ) {
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(selected = filter == null, onClick = { filter = null }, label = { Text("全部") })
-                    FilterChip(selected = filter == ArchiveAssetDelivery.Bundled, onClick = { filter = ArchiveAssetDelivery.Bundled }, label = { Text("已内置") })
-                    FilterChip(selected = filter == ArchiveAssetDelivery.OnDemand, onClick = { filter = ArchiveAssetDelivery.OnDemand }, label = { Text("按需") })
+                    FilterChip(
+                        selected = filter == null,
+                        onClick = {
+                            onHaptic()
+                            filter = null
+                        },
+                        label = { Text("全部") }
+                    )
+                    FilterChip(
+                        selected = filter == ArchiveAssetDelivery.Bundled,
+                        onClick = {
+                            onHaptic()
+                            filter = ArchiveAssetDelivery.Bundled
+                        },
+                        label = { Text("已内置") }
+                    )
+                    FilterChip(
+                        selected = filter == ArchiveAssetDelivery.OnDemand,
+                        onClick = {
+                            onHaptic()
+                            filter = ArchiveAssetDelivery.OnDemand
+                        },
+                        label = { Text("按需") }
+                    )
                 }
             }
             items(visible) { asset ->
@@ -955,7 +1101,8 @@ private fun ArchiveDetailScreen(
     asset: ArchiveAsset,
     repository: AnomiconRepository,
     onBack: () -> Unit,
-    onOpenArticle: () -> Unit
+    onOpenArticle: () -> Unit,
+    onHaptic: () -> Unit
 ) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
@@ -1002,10 +1149,16 @@ private fun ArchiveDetailScreen(
             }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = onOpenArticle) {
+                    Button(onClick = {
+                        onHaptic()
+                        onOpenArticle()
+                    }) {
                         Text("打开条目")
                     }
-                    OutlinedButton(onClick = { openUrl(context, asset.sourceUrl) }) {
+                    OutlinedButton(onClick = {
+                        onHaptic()
+                        openUrl(context, asset.sourceUrl)
+                    }) {
                         Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
                         Text("来源")
@@ -1015,7 +1168,10 @@ private fun ArchiveDetailScreen(
             if (asset.delivery == ArchiveAssetDelivery.OnDemand && asset.downloadUrl.isNotBlank()) {
                 item {
                     AssistChip(
-                        onClick = { openUrl(context, asset.downloadUrl) },
+                        onClick = {
+                            onHaptic()
+                            openUrl(context, asset.downloadUrl)
+                        },
                         leadingIcon = { Icon(Icons.Outlined.CloudDownload, contentDescription = null) },
                         label = { Text("打开按需资源下载地址") }
                     )
@@ -1147,6 +1303,7 @@ private fun ArchiveAssetCard(
 @Composable
 private fun ContentRefRow(
     content: ContentRef,
+    subtitle: String? = null,
     trailing: @Composable (() -> Unit)? = null,
     onOpen: () -> Unit
 ) {
@@ -1162,7 +1319,11 @@ private fun ContentRefRow(
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(content.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(content.id, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    subtitle ?: content.id,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             trailing?.invoke()
         }
@@ -1249,6 +1410,155 @@ private fun rankLabel(historyCount: Int, favoriteCount: Int): String {
         score >= 1 -> "检索者"
         else -> "初访者"
     }
+}
+
+@Composable
+private fun ResearchProfileSummaryCard(
+    progress: ResearchProgress,
+    favoriteCount: Int,
+    historyCount: Int
+) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .size(58.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text("LV", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("${progress.level}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text("档案阅历", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(progress.rankTitle.label, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("${progress.experience} XP", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    if (progress.levelExperienceTarget <= 0) "已达最高等级"
+                    else "距 Lv.${progress.level + 1}",
+                    style = MaterialTheme.typography.labelMedium
+                )
+                Text(
+                    if (progress.levelExperienceTarget <= 0) "等级上限"
+                    else "${progress.levelExperience} / ${progress.levelExperienceTarget} XP",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            LinearProgressIndicator(
+                progress = { progress.levelProgressPercent },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ResearchStat(
+                    value = formatDuration(progress.creditedActiveMs),
+                    label = "计分阅读",
+                    modifier = Modifier.weight(1f)
+                )
+                ResearchStat(
+                    value = progress.researchedContentCount.toString(),
+                    label = "已研读",
+                    modifier = Modifier.weight(1f)
+                )
+                ResearchStat(
+                    value = favoriteCount.toString(),
+                    label = "收藏",
+                    modifier = Modifier.weight(1f)
+                )
+                ResearchStat(
+                    value = historyCount.toString(),
+                    label = "记录",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResearchStat(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun ReadingHistoryRow(
+    entry: ReadingHistoryEntry,
+    onOpen: () -> Unit
+) {
+    val progress = readingProgressPercent(entry)
+    ElevatedCard(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        entry.content.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(entry.content.id, style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    if (progress > 0f) "${(progress * 100).toInt()}%" else "开始阅读",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                "${formatDuration(entry.activeMs)} · ${formatLastReadAt(entry.lastReadAt)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private fun formatDuration(activeMs: Long): String {
+    val minutes = (activeMs / 60_000L).toInt()
+    return when {
+        minutes <= 0 && activeMs > 0L -> "不足 1 分钟"
+        minutes < 60 -> "${minutes} 分钟"
+        else -> "${minutes / 60} 小时 ${minutes % 60} 分钟"
+    }
+}
+
+private fun formatLastReadAt(timestamp: Long): String {
+    if (timestamp <= 0L) return "尚无时间记录"
+    return DateFormat.getDateTimeInstance(
+        DateFormat.SHORT,
+        DateFormat.SHORT,
+        Locale.getDefault()
+    ).format(Date(timestamp))
 }
 
 private fun formatBytes(byteLength: Long): String =
