@@ -2,6 +2,9 @@ package com.suixin.anomicon.core.data
 
 import com.suixin.anomicon.core.model.CatalogEntry
 import com.suixin.anomicon.core.model.CatalogSeriesDescriptor
+import com.suixin.anomicon.core.model.ArticleBlock
+import com.suixin.anomicon.core.model.ArticleDocument
+import com.suixin.anomicon.core.model.ContentRef
 import com.suixin.anomicon.core.model.ExploreEntry
 import com.suixin.anomicon.core.model.ExploreSource
 import com.suixin.anomicon.core.model.TaleEntry
@@ -42,6 +45,80 @@ class WikiGateway(
         withContext(Dispatchers.IO) {
             extractTitle(fetch(articleUrlOf(itemId)), itemId.uppercase(Locale.ROOT))
         }
+
+    suspend fun loadArticleHtml(content: ContentRef): String =
+        withContext(Dispatchers.IO) {
+            fetch(articleUrlOf(content.id))
+        }
+
+    fun parseArticle(content: ContentRef, html: String, fetchedAt: Long = System.currentTimeMillis()): ArticleDocument {
+        val document = Jsoup.parse(html, articleUrlOf(content.id))
+        val page = document.getElementById("page-content") ?: document.body()
+        page.select("script,style,noscript,iframe,form,.page-options,.footer-wikiwalk-nav,#page-info").remove()
+        return ArticleDocument(
+            content = content,
+            sourceUrl = articleUrlOf(content.id),
+            fetchedAt = fetchedAt,
+            blocks = buildList { appendArticleBlocks(page) }
+        )
+    }
+
+    private fun MutableList<ArticleBlock>.appendArticleBlocks(element: Element) {
+        element.children().forEach { child ->
+            when (child.tagName().lowercase(Locale.ROOT)) {
+                "h1", "h2", "h3", "h4", "h5", "h6" -> {
+                    child.text().cleanText().takeIf { it.isNotBlank() }?.let {
+                        add(ArticleBlock.Heading(it, child.tagName().drop(1).toInt()))
+                    }
+                }
+                "p" -> {
+                    val images = child.select("img")
+                    images.forEach { image -> addImage(image) }
+                    child.clone().select("img").remove()
+                    child.text().cleanText().takeIf { it.isNotBlank() }?.let { add(ArticleBlock.Paragraph(it)) }
+                }
+                "img" -> addImage(child)
+                "blockquote" -> child.text().cleanText().takeIf { it.isNotBlank() }?.let { add(ArticleBlock.Quote(it)) }
+                "ul", "ol" -> {
+                    val items = child.children()
+                        .filter { it.tagName().equals("li", ignoreCase = true) }
+                        .map { it.text().cleanText() }
+                        .filter { it.isNotBlank() }
+                    if (items.isNotEmpty()) add(ArticleBlock.ListBlock(items, child.tagName() == "ol"))
+                }
+                "hr" -> add(ArticleBlock.Divider)
+                "table" -> {
+                    child.select("tr").map { it.text().cleanText() }
+                        .filter { it.isNotBlank() }
+                        .forEach { add(ArticleBlock.Paragraph(it)) }
+                }
+                else -> {
+                    val hasNestedBlocks = child.children().any { nested ->
+                        nested.tagName().lowercase(Locale.ROOT) in BLOCK_TAGS
+                    }
+                    if (hasNestedBlocks) {
+                        appendArticleBlocks(child)
+                    } else {
+                        child.select("img").forEach { image -> addImage(image) }
+                        child.clone().select("img").remove()
+                        child.text().cleanText().takeIf { it.isNotBlank() }?.let { add(ArticleBlock.Paragraph(it)) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun MutableList<ArticleBlock>.addImage(image: Element) {
+        val rawUrl = image.absUrl("src").ifBlank { image.attr("src") }
+        val url = when {
+            rawUrl.startsWith("//") -> "https:$rawUrl"
+            rawUrl.startsWith("http://") || rawUrl.startsWith("https://") -> rawUrl
+            rawUrl.startsWith("/") -> "$WikiCn$rawUrl"
+            rawUrl.isBlank() -> ""
+            else -> "$WikiCn/$rawUrl"
+        }
+        if (url.isNotBlank()) add(ArticleBlock.Image(url, image.attr("alt").cleanText()))
+    }
 
     fun parseCatalog(html: String): List<CatalogEntry> {
         val content = Jsoup.parse(html).getElementById("page-content") ?: return emptyList()
@@ -216,5 +293,6 @@ class WikiGateway(
 
     companion object {
         private const val WikiCn = "https://scp-wiki-cn.wikidot.com"
+        private val BLOCK_TAGS = setOf("h1", "h2", "h3", "h4", "h5", "h6", "p", "blockquote", "ul", "ol", "hr", "table")
     }
 }

@@ -119,6 +119,22 @@ data class ExploreHomeData(
     val error: String? = null
 )
 
+sealed interface ArticleBlock {
+    data class Heading(val text: String, val level: Int) : ArticleBlock
+    data class Paragraph(val text: String) : ArticleBlock
+    data class Image(val url: String, val alt: String) : ArticleBlock
+    data class Quote(val text: String) : ArticleBlock
+    data class ListBlock(val items: List<String>, val ordered: Boolean) : ArticleBlock
+    data object Divider : ArticleBlock
+}
+
+data class ArticleDocument(
+    val content: ContentRef,
+    val sourceUrl: String,
+    val fetchedAt: Long,
+    val blocks: List<ArticleBlock>
+)
+
 enum class ArchiveAssetSource {
     Bundled,
     Remote
