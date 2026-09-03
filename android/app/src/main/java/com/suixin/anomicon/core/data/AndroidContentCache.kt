@@ -31,6 +31,17 @@ class AndroidContentCache(context: Context) {
         }
     }
 
+    fun readFile(key: String, extension: String): File? =
+        fileFor(key, extension).takeIf { it.isFile }
+
+    fun writeBytes(key: String, extension: String, body: ByteArray, fetchedAt: Long = System.currentTimeMillis()): File {
+        val bodyFile = fileFor(key, extension)
+        val metadataFile = fileFor(key, "$extension.meta")
+        writeAtomically(bodyFile, body)
+        writeAtomically(metadataFile, fetchedAt.toString())
+        return bodyFile
+    }
+
     fun clear() {
         root.listFiles()?.forEach { it.delete() }
     }
@@ -41,6 +52,15 @@ class AndroidContentCache(context: Context) {
     private fun writeAtomically(target: File, body: String) {
         val temporary = File(target.parentFile, "${target.name}.tmp")
         temporary.writeText(body)
+        if (!temporary.renameTo(target)) {
+            target.delete()
+            check(temporary.renameTo(target)) { "无法写入缓存文件：${target.name}" }
+        }
+    }
+
+    private fun writeAtomically(target: File, body: ByteArray) {
+        val temporary = File(target.parentFile, "${target.name}.tmp")
+        temporary.writeBytes(body)
         if (!temporary.renameTo(target)) {
             target.delete()
             check(temporary.renameTo(target)) { "无法写入缓存文件：${target.name}" }

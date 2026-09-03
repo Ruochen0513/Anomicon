@@ -51,6 +51,18 @@ class WikiGateway(
             fetch(articleUrlOf(content.id))
         }
 
+    suspend fun loadResource(url: String): ByteArray =
+        withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Anomicon-Android-Migration/1.0")
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IOException("HTTP ${response.code}: $url")
+                response.body?.bytes() ?: throw IOException("空资源：$url")
+            }
+        }
+
     fun parseArticle(content: ContentRef, html: String, fetchedAt: Long = System.currentTimeMillis()): ArticleDocument {
         val document = Jsoup.parse(html, articleUrlOf(content.id))
         val page = document.getElementById("page-content") ?: document.body()
