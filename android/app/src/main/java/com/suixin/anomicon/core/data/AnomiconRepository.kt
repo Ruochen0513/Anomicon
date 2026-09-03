@@ -1,6 +1,7 @@
 package com.suixin.anomicon.core.data
 
 import com.suixin.anomicon.core.model.CatalogEntry
+import com.suixin.anomicon.core.model.ArchiveAsset
 import com.suixin.anomicon.core.model.ContentKind
 import com.suixin.anomicon.core.model.ContentRef
 import com.suixin.anomicon.core.model.ExploreContentItem
@@ -17,11 +18,33 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
 import java.time.LocalDate
+import java.io.File
 
 class AnomiconRepository(
     private val wikiGateway: WikiGateway = WikiGateway(),
-    private val contentCache: AndroidContentCache? = null
+    private val contentCache: AndroidContentCache? = null,
+    private val archiveAssetStore: AndroidArchiveAssetStore? = null
 ) {
+    suspend fun installedArchiveAsset(asset: ArchiveAsset): Result<File?> =
+        runCatching {
+            archiveAssetStore?.installedFile(asset)
+        }
+
+    suspend fun downloadArchiveAsset(
+        asset: ArchiveAsset,
+        onProgress: suspend (ArchiveDownloadProgress) -> Unit = {}
+    ): Result<File> =
+        runCatching {
+            archiveAssetStore?.download(asset, onProgress)
+                ?: throw IllegalStateException("三维模型缓存未启用")
+        }
+
+    suspend fun deleteArchiveAsset(asset: ArchiveAsset): Result<Boolean> =
+        runCatching {
+            archiveAssetStore?.delete(asset)
+                ?: throw IllegalStateException("三维模型缓存未启用")
+        }
+
     suspend fun loadCatalog(seriesId: String): Result<List<CatalogEntry>> =
         runCatching {
             val series = ScpSeriesDescriptors.firstOrNull { it.id == seriesId }
@@ -60,6 +83,23 @@ class AnomiconRepository(
             val cached = readCache("article:${content.key}", "html")
                 ?: throw IllegalStateException("文章尚未缓存，且当前无法连接网络")
             wikiGateway.parseArticle(content, cached.body, cached.fetchedAt)
+        }
+
+    suspend fun loadImageFile(url: String): Result<File> =
+        runCatching {
+            withContext(Dispatchers.IO) {
+                contentCache?.readFile("image:$url", "img")
+            } ?: run {
+                val bytes = wikiGateway.loadResource(url)
+                withContext(Dispatchers.IO) {
+                    contentCache?.writeBytes("image:$url", "img", bytes)
+                        ?: throw IllegalStateException("图片缓存未启用")
+                }
+            }
+        }.recoverCatching {
+            withContext(Dispatchers.IO) {
+                contentCache?.readFile("image:$url", "img")
+            } ?: throw it
         }
 
     suspend fun loadExplore(date: LocalDate = LocalDate.now()): ExploreHomeData =

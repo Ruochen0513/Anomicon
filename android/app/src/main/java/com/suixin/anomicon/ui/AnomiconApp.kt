@@ -154,6 +154,7 @@ fun AnomiconApp(
         when {
             activeArchive != null -> ArchiveDetailScreen(
                 asset = activeArchive!!,
+                repository = repository,
                 onBack = { activeArchive = null },
                 onOpenArticle = { openContent(activeArchive!!.contentRef) }
             )
@@ -174,6 +175,7 @@ fun AnomiconApp(
                 onSettingsChange = saveSettings
             )
             showArchiveGallery -> ArchiveGalleryScreen(
+                repository = repository,
                 onBack = { showArchiveGallery = false },
                 onOpenAsset = { asset -> activeArchive = asset },
                 onOpenArticle = openContent
@@ -900,6 +902,7 @@ private fun SettingsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ArchiveGalleryScreen(
+    repository: AnomiconRepository,
     onBack: () -> Unit,
     onOpenAsset: (ArchiveAsset) -> Unit,
     onOpenArticle: (ContentRef) -> Unit
@@ -936,7 +939,11 @@ private fun ArchiveGalleryScreen(
                 }
             }
             items(visible) { asset ->
-                ArchiveAssetCard(asset = asset, onOpenAsset = onOpenAsset, onOpenArticle = onOpenArticle)
+                ArchiveAssetCard(
+                    asset = asset,
+                    onOpenAsset = onOpenAsset,
+                    onOpenArticle = onOpenArticle
+                )
             }
         }
     }
@@ -946,6 +953,7 @@ private fun ArchiveGalleryScreen(
 @Composable
 private fun ArchiveDetailScreen(
     asset: ArchiveAsset,
+    repository: AnomiconRepository,
     onBack: () -> Unit,
     onOpenArticle: () -> Unit
 ) {
@@ -973,6 +981,7 @@ private fun ArchiveDetailScreen(
             item {
                 ArchiveModelViewer(
                     asset = asset,
+                    repository = repository,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(260.dp)
