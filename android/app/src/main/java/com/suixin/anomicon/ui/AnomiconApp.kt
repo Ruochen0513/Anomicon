@@ -124,6 +124,8 @@ private enum class HomeTab(val title: String, val icon: ImageVector) {
     Terminal("终端", Icons.Outlined.Bookmarks)
 }
 
+private val StoryFilterLetters: List<String> = ('A'..'Z').map { it.toString() }
+
 @Composable
 fun AnomiconApp(
     repository: AnomiconRepository,
@@ -286,7 +288,7 @@ private fun HomeScaffold(
         when (selectedTab) {
             HomeTab.Explore -> ExploreScreen(repository, padding, onOpenContent)
             HomeTab.Catalog -> CatalogScreen(repository, padding, onOpenContent, onHaptic)
-            HomeTab.Stories -> StoriesScreen(repository, padding, onOpenContent)
+            HomeTab.Stories -> StoriesScreen(repository, padding, onOpenContent, onHaptic)
             HomeTab.Terminal -> TerminalScreen(library, padding, onOpenContent, onToggleFavorite)
         }
     }
@@ -438,15 +440,27 @@ private fun CatalogScreen(
 private fun StoriesScreen(
     repository: AnomiconRepository,
     padding: PaddingValues,
-    onOpenContent: (ContentRef) -> Unit
+    onOpenContent: (ContentRef) -> Unit,
+    onHaptic: () -> Unit
 ) {
     var query by remember { mutableStateOf("") }
+    var selectedLetter by remember { mutableStateOf("") }
     var tales by remember { mutableStateOf<List<TaleEntry>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         tales = repository.loadTales().getOrDefault(SeedData.fallbackTales)
         loading = false
+    }
+    LaunchedEffect(selectedLetter) {
+        listState.scrollToItem(0)
+    }
+
+    fun selectLetter(letter: String) {
+        if (selectedLetter == letter) return
+        onHaptic()
+        selectedLetter = letter
     }
 
     Column(
@@ -458,25 +472,62 @@ private fun StoriesScreen(
             value = query,
             onValueChange = { query = it },
             leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-            label = { Text("搜索故事") },
+            label = { Text("搜索故事标题或路径") },
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            item {
+                FilterChip(
+                    selected = selectedLetter.isEmpty(),
+                    onClick = { selectLetter("") },
+                    label = { Text("全部") }
+                )
+            }
+            items(StoryFilterLetters) { letter ->
+                FilterChip(
+                    selected = selectedLetter == letter,
+                    onClick = { selectLetter(letter) },
+                    label = { Text(letter) }
+                )
+            }
+        }
         if (loading) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
+        val filterActive = query.trim().isNotEmpty() || selectedLetter.isNotEmpty()
         val filtered = tales.filter {
             val normalizedQuery = query.trim().lowercase(Locale.ROOT)
-            normalizedQuery.isEmpty() ||
+            val matchesLetter = selectedLetter.isEmpty() ||
+                it.id.firstOrNull()?.uppercaseChar()?.toString() == selectedLetter
+            matchesLetter && (normalizedQuery.isEmpty() ||
                 it.id.lowercase(Locale.ROOT).contains(normalizedQuery) ||
-                it.title.lowercase(Locale.ROOT).contains(normalizedQuery)
+                it.title.lowercase(Locale.ROOT).contains(normalizedQuery))
         }
         LazyColumn(
+            state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            if (!loading && filtered.isEmpty()) {
+                item {
+                    EmptyFilterState(
+                        active = filterActive,
+                        onClear = {
+                            if (filterActive) {
+                                onHaptic()
+                                query = ""
+                                selectedLetter = ""
+                            }
+                        }
+                    )
+                }
+            }
             items(filtered) { tale ->
                 ElevatedCard(
                     onClick = { onOpenContent(tale.contentRef) },
@@ -490,6 +541,35 @@ private fun StoriesScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyFilterState(
+    active: Boolean,
+    onClear: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "无匹配故事",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (active) {
+                OutlinedButton(onClick = onClear) {
+                    Text("清除筛选")
                 }
             }
         }
