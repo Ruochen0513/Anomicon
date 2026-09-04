@@ -76,6 +76,7 @@ class _AnomiconAppState extends State<AnomiconApp> {
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: false,
         statusBarIconBrightness: Brightness.light,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
@@ -290,7 +291,7 @@ class HomeShell extends StatelessWidget {
           Align(
             alignment: Alignment.bottomCenter,
             child: SafeArea(
-              minimum: const EdgeInsets.only(bottom: 16),
+              minimum: const EdgeInsets.only(bottom: 20),
               child: GlassBottomBar(
                 selectedTab: selectedTab,
                 onSelectTab: onSelectTab,
