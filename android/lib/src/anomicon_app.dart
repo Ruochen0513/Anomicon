@@ -112,7 +112,9 @@ class _AnomiconAppState extends State<AnomiconApp> {
         settings: _settings,
         repository: widget.repository,
         localStore: widget.localStore,
-        favorite: _library.favorites.any((item) => item.key == _activeContent!.key),
+        favorite: _library.favorites.any(
+          (item) => item.key == _activeContent!.key,
+        ),
         onBack: () async {
           await _playSelection();
           setState(() => _activeContent = null);
@@ -258,7 +260,10 @@ class HomeShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final child = switch (selectedTab) {
-      HomeTab.explore => ExploreScreen(repository: repository, onOpenContent: onOpenContent),
+      HomeTab.explore => ExploreScreen(
+        repository: repository,
+        onOpenContent: onOpenContent,
+      ),
       HomeTab.catalog => CatalogScreen(
         repository: repository,
         onOpenContent: onOpenContent,
@@ -327,7 +332,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
     return FutureBuilder<ExploreHomeData>(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data ??
+        final data =
+            snapshot.data ??
             ExploreHomeData(
               topRated: SeedData.fallbackExplore,
               recommendations: SeedData.fallbackRecommendations,
@@ -354,7 +360,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 child: SectionTitle(
                   title: '今日推荐',
                   subtitle: '每天随机解析一组主站档案',
-                  trailing: '${math.min(_recommendationIndex + 1, data.recommendations.length)} / ${data.recommendations.length}',
+                  trailing:
+                      '${math.min(_recommendationIndex + 1, data.recommendations.length)} / ${data.recommendations.length}',
                 ),
               ),
               SliverToBoxAdapter(
@@ -362,7 +369,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   height: 410,
                   child: PageView.builder(
                     itemCount: data.recommendations.length,
-                    onPageChanged: (index) => setState(() => _recommendationIndex = index),
+                    onPageChanged: (index) =>
+                        setState(() => _recommendationIndex = index),
                     itemBuilder: (context, index) {
                       final entry = data.recommendations[index];
                       return Padding(
@@ -370,7 +378,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         child: RecommendationHeroCard(
                           entry: entry,
                           onTap: () => widget.onOpenContent(
-                            ContentRef.create(ContentKind.scp, entry.normalizedId, entry.title),
+                            ContentRef.create(
+                              ContentKind.scp,
+                              entry.normalizedId,
+                              entry.title,
+                            ),
                           ),
                         ),
                       );
@@ -379,7 +391,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ),
               ),
               const SliverToBoxAdapter(
-                child: HintRow(icon: Icons.swipe_rounded, text: '左右划走顶牌，点击卡牌阅读'),
+                child: HintRow(
+                  icon: Icons.swipe_rounded,
+                  text: '左右划走顶牌，点击卡牌阅读',
+                ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
@@ -395,7 +410,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 child: RankedListCard(
                   entries: data.topRated.take(8).toList(),
                   onOpenContent: (entry) => widget.onOpenContent(
-                    ContentRef.create(ContentKind.wiki, entry.normalizedId, entry.title),
+                    ContentRef.create(
+                      ContentKind.wiki,
+                      entry.normalizedId,
+                      entry.title,
+                    ),
                   ),
                 ),
               ),
@@ -414,7 +433,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ),
               ),
               if (snapshot.connectionState == ConnectionState.waiting)
-                const SliverToBoxAdapter(child: LinearProgressIndicator(minHeight: 2)),
+                const SliverToBoxAdapter(
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
               const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
             ],
           ),
@@ -506,7 +527,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
               SliverToBoxAdapter(
                 child: HorizontalPills(
                   labels: <String, String>{
-                    for (final series in scpSeriesDescriptors) series.id: series.label,
+                    for (final series in scpSeriesDescriptors)
+                      series.id: series.label,
                   },
                   selected: _selectedSeriesId,
                   onSelected: (value) {
@@ -520,7 +542,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
                 ),
               ),
               if (snapshot.connectionState == ConnectionState.waiting)
-                const SliverToBoxAdapter(child: LinearProgressIndicator(minHeight: 2)),
+                const SliverToBoxAdapter(
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 124),
                 sliver: SliverGrid.builder(
@@ -529,11 +553,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 14,
                     mainAxisSpacing: 14,
-                    childAspectRatio: 0.62,
+                    mainAxisExtent: 292,
                   ),
                   itemBuilder: (context, index) => CatalogTile(
                     entry: filtered[index],
-                    onTap: () => widget.onOpenContent(filtered[index].contentRef),
+                    onTap: () =>
+                        widget.onOpenContent(filtered[index].contentRef),
                   ),
                 ),
               ),
@@ -562,7 +587,10 @@ class StoriesScreen extends StatefulWidget {
 }
 
 class _StoriesScreenState extends State<StoriesScreen> {
-  static final _letters = List<String>.generate(26, (index) => String.fromCharCode(65 + index));
+  static final _letters = List<String>.generate(
+    26,
+    (index) => String.fromCharCode(65 + index),
+  );
 
   var _query = '';
   var _selectedLetter = '';
@@ -590,8 +618,10 @@ class _StoriesScreenState extends State<StoriesScreen> {
           final tales = snapshot.data ?? SeedData.fallbackTales;
           final normalizedQuery = _query.trim().toLowerCase();
           final filtered = tales.where((tale) {
-            final matchesLetter = _selectedLetter.isEmpty ||
-                (tale.id.isNotEmpty && tale.id[0].toUpperCase() == _selectedLetter);
+            final matchesLetter =
+                _selectedLetter.isEmpty ||
+                (tale.id.isNotEmpty &&
+                    tale.id[0].toUpperCase() == _selectedLetter);
             return matchesLetter &&
                 (normalizedQuery.isEmpty ||
                     tale.id.toLowerCase().contains(normalizedQuery) ||
@@ -630,14 +660,19 @@ class _StoriesScreenState extends State<StoriesScreen> {
                 ),
               ),
               if (snapshot.connectionState == ConnectionState.waiting)
-                const SliverToBoxAdapter(child: LinearProgressIndicator(minHeight: 2)),
+                const SliverToBoxAdapter(
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
               if (filtered.isEmpty)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: EmptyCard(
                       title: '无匹配故事',
-                      actionLabel: _query.isNotEmpty || _selectedLetter.isNotEmpty ? '清除筛选' : null,
+                      actionLabel:
+                          _query.isNotEmpty || _selectedLetter.isNotEmpty
+                          ? '清除筛选'
+                          : null,
                       onAction: () {
                         widget.onHaptic();
                         setState(() {
@@ -655,9 +690,11 @@ class _StoriesScreenState extends State<StoriesScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) => StoryRow(
                       tale: filtered[index],
-                      onTap: () => widget.onOpenContent(filtered[index].contentRef),
+                      onTap: () =>
+                          widget.onOpenContent(filtered[index].contentRef),
                     ),
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
                   ),
                 ),
             ],
@@ -685,9 +722,14 @@ class TerminalScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = deriveResearchProgress(library.activitySegments);
-    final resumeEntry = library.history.where((item) => item.scrollOffset > 0).firstOrNull;
+    final resumeEntry = library.history
+        .where((item) => item.scrollOffset > 0)
+        .firstOrNull;
     final resumeKey = resumeEntry?.content.key;
-    final recentEntries = library.history.where((item) => item.content.key != resumeKey).take(30).toList();
+    final recentEntries = library.history
+        .where((item) => item.content.key != resumeKey)
+        .take(30)
+        .toList();
     return PageCanvas(
       child: CustomScrollView(
         slivers: <Widget>[
@@ -728,7 +770,10 @@ class TerminalScreen extends StatelessWidget {
               count: resumeEntry == null ? 0 : 1,
               child: resumeEntry == null
                   ? const EmptyCard(title: '暂无可继续的条目。')
-                  : ReadingHistoryRow(entry: resumeEntry, onTap: () => onOpenContent(resumeEntry.content)),
+                  : ReadingHistoryRow(
+                      entry: resumeEntry,
+                      onTap: () => onOpenContent(resumeEntry.content),
+                    ),
             ),
           ),
           SliverToBoxAdapter(
@@ -748,7 +793,10 @@ class TerminalScreen extends StatelessWidget {
                                 subtitle: content.id,
                                 trailing: IconButton(
                                   onPressed: () => onToggleFavorite(content),
-                                  icon: const Icon(Icons.star_rounded, color: _accent),
+                                  icon: const Icon(
+                                    Icons.star_rounded,
+                                    color: _accent,
+                                  ),
                                 ),
                                 onTap: () => onOpenContent(content),
                               ),
@@ -770,7 +818,10 @@ class TerminalScreen extends StatelessWidget {
                           .map(
                             (entry) => Padding(
                               padding: const EdgeInsets.only(bottom: 10),
-                              child: ReadingHistoryRow(entry: entry, onTap: () => onOpenContent(entry.content)),
+                              child: ReadingHistoryRow(
+                                entry: entry,
+                                onTap: () => onOpenContent(entry.content),
+                              ),
                             ),
                           )
                           .toList(),
@@ -822,8 +873,14 @@ class _ArticleScreenState extends State<ArticleScreen> {
   @override
   void initState() {
     super.initState();
-    final existing = widget.localStore.loadLibrary().history.where((entry) => entry.content.key == widget.content.key).firstOrNull;
-    _controller = ScrollController(initialScrollOffset: (existing?.scrollOffset ?? 0) * 220.0);
+    final existing = widget.localStore
+        .loadLibrary()
+        .history
+        .where((entry) => entry.content.key == widget.content.key)
+        .firstOrNull;
+    _controller = ScrollController(
+      initialScrollOffset: (existing?.scrollOffset ?? 0) * 220.0,
+    );
     _controller.addListener(_recordScrollCheckpoint);
     _future = _load();
   }
@@ -884,7 +941,9 @@ class _ArticleScreenState extends State<ArticleScreen> {
           ),
         const SizedBox(width: 8),
         GlassIconButton(
-          icon: widget.favorite ? Icons.star_rounded : Icons.star_outline_rounded,
+          icon: widget.favorite
+              ? Icons.star_rounded
+              : Icons.star_outline_rounded,
           label: widget.favorite ? '取消收藏' : '收藏',
           onPressed: widget.onToggleFavorite,
         ),
@@ -893,19 +952,24 @@ class _ArticleScreenState extends State<ArticleScreen> {
         future: _future,
         builder: (context, snapshot) {
           final document = snapshot.data;
-          if (snapshot.connectionState == ConnectionState.waiting && document == null) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              document == null) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError || document == null) {
             return ArticleError(
               message: snapshot.error?.toString() ?? '文章暂时不可用',
               onRetry: () => setState(() => _future = _load()),
-              onOpenOriginal: () => _openExternal(articleUrlOf(widget.content.id)),
+              onOpenOriginal: () =>
+                  _openExternal(articleUrlOf(widget.content.id)),
             );
           }
           final progress = document.blocks.length <= 1
               ? 1.0
-              : (_blockIndex / math.max(1, document.blocks.length - 1)).clamp(0.0, 1.0);
+              : (_blockIndex / math.max(1, document.blocks.length - 1)).clamp(
+                  0.0,
+                  1.0,
+                );
           return Stack(
             children: <Widget>[
               ListView.separated(
@@ -925,7 +989,10 @@ class _ArticleScreenState extends State<ArticleScreen> {
                         const SizedBox(height: 10),
                         Text(
                           '原生阅读 · ${document.blocks.length} 个内容块',
-                          style: const TextStyle(color: _muted, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            color: _muted,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     );
@@ -940,13 +1007,18 @@ class _ArticleScreenState extends State<ArticleScreen> {
                     block: document.blocks[index - 1],
                     settings: widget.settings,
                     repository: widget.repository,
-                    onImageLoaded: (file) => setState(() => _previewFile = file),
+                    onImageLoaded: (file) =>
+                        setState(() => _previewFile = file),
                   );
                 },
-                separatorBuilder: (context, index) => const SizedBox(height: 14),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 14),
               ),
               if (snapshot.connectionState == ConnectionState.waiting)
-                const Align(alignment: Alignment.topCenter, child: LinearProgressIndicator(minHeight: 2)),
+                const Align(
+                  alignment: Alignment.topCenter,
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
               if (_previewFile != null)
                 ImagePreviewDialog(
                   file: _previewFile!,
@@ -994,7 +1066,8 @@ class _ArchiveGalleryScreenState extends State<ArchiveGalleryScreen> {
     final next = <String, bool>{};
     for (final asset in SeedData.archiveAssets) {
       next[asset.assetId] =
-          asset.isReadyByDefault || await widget.repository.installedArchiveAsset(asset) != null;
+          asset.isReadyByDefault ||
+          await widget.repository.installedArchiveAsset(asset) != null;
     }
     if (!mounted) return;
     setState(() => _installed = next);
@@ -1002,10 +1075,14 @@ class _ArchiveGalleryScreenState extends State<ArchiveGalleryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final installedCount = SeedData.archiveAssets.where((asset) => _installed[asset.assetId] ?? asset.isReadyByDefault).length;
+    final installedCount = SeedData.archiveAssets
+        .where((asset) => _installed[asset.assetId] ?? asset.isReadyByDefault)
+        .length;
     final visible = SeedData.archiveAssets.where((asset) {
       final isInstalled = _installed[asset.assetId] ?? asset.isReadyByDefault;
-      return _filter == 'all' || (_filter == 'installed' && isInstalled) || (_filter == 'pending' && !isInstalled);
+      return _filter == 'all' ||
+          (_filter == 'installed' && isInstalled) ||
+          (_filter == 'pending' && !isInstalled);
     }).toList();
     return DetailCanvas(
       onBack: widget.onBack,
@@ -1018,7 +1095,8 @@ class _ArchiveGalleryScreenState extends State<ArchiveGalleryScreen> {
               labels: <String, String>{
                 'all': '全部 ${SeedData.archiveAssets.length}',
                 'installed': '已下载 $installedCount',
-                'pending': '待下载 ${SeedData.archiveAssets.length - installedCount}',
+                'pending':
+                    '待下载 ${SeedData.archiveAssets.length - installedCount}',
               },
               selected: _filter,
               onSelected: (value) {
@@ -1035,7 +1113,8 @@ class _ArchiveGalleryScreenState extends State<ArchiveGalleryScreen> {
                 final asset = visible[index];
                 return ArchiveGalleryCard(
                   asset: asset,
-                  installed: _installed[asset.assetId] ?? asset.isReadyByDefault,
+                  installed:
+                      _installed[asset.assetId] ?? asset.isReadyByDefault,
                   onOpenAsset: () => widget.onOpenAsset(asset),
                   onOpenArticle: () => widget.onOpenArticle(asset.contentRef),
                   onDelete: asset.delivery == ArchiveAssetDelivery.onDemand
@@ -1158,11 +1237,15 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 FilledButton(
-                  onPressed: installed ? () => setState(() => _autoRotate = !_autoRotate) : null,
+                  onPressed: installed
+                      ? () => setState(() => _autoRotate = !_autoRotate)
+                      : null,
                   child: Text(_autoRotate ? '停止旋转' : '自动旋转'),
                 ),
                 FilledButton(
-                  onPressed: installed ? () => setState(() => _autoRotate = true) : null,
+                  onPressed: installed
+                      ? () => setState(() => _autoRotate = true)
+                      : null,
                   child: const Text('复位'),
                 ),
               ],
@@ -1179,9 +1262,18 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          const Text('档案说明', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                          const Text(
+                            '档案说明',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                           const SizedBox(height: 4),
-                          Text('对象等级 · ${asset.objectClass}', style: const TextStyle(color: _muted, fontSize: 16)),
+                          Text(
+                            '对象等级 · ${asset.objectClass}',
+                            style: const TextStyle(color: _muted, fontSize: 16),
+                          ),
                         ],
                       ),
                     ),
@@ -1192,17 +1284,32 @@ class _ArchiveDetailScreenState extends State<ArchiveDetailScreen> {
                   ],
                 ),
                 const SizedBox(height: 22),
-                Text(asset.description, style: const TextStyle(color: Color(0xFFB9BEC3), fontSize: 17, height: 1.55)),
+                Text(
+                  asset.description,
+                  style: const TextStyle(
+                    color: Color(0xFFB9BEC3),
+                    fontSize: 17,
+                    height: 1.55,
+                  ),
+                ),
                 const SizedBox(height: 22),
                 const Divider(color: Color(0xFF3F4448)),
                 MetadataRow(label: '格式', value: 'GLB'),
                 MetadataRow(label: '大小', value: formatBytes(asset.byteLength)),
                 MetadataRow(label: '档案版本', value: asset.version),
-                MetadataRow(label: '交付方式', value: asset.delivery == ArchiveAssetDelivery.bundled ? '随应用内置' : '按需下载'),
+                MetadataRow(
+                  label: '交付方式',
+                  value: asset.delivery == ArchiveAssetDelivery.bundled
+                      ? '随应用内置'
+                      : '按需下载',
+                ),
                 MetadataRow(label: '许可证', value: asset.license),
                 MetadataRow(label: '归因', value: asset.attribution),
                 const SizedBox(height: 12),
-                Text(asset.modificationNote, style: const TextStyle(color: _muted, height: 1.45)),
+                Text(
+                  asset.modificationNote,
+                  style: const TextStyle(color: _muted, height: 1.45),
+                ),
                 const SizedBox(height: 16),
                 Row(
                   children: <Widget>[
@@ -1257,7 +1364,10 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text('主题', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                const Text(
+                  '主题',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                ),
                 const SizedBox(height: 14),
                 HorizontalPills(
                   labels: const <String, String>{
@@ -1270,7 +1380,9 @@ class SettingsScreen extends StatelessWidget {
                     onHaptic();
                     onSettingsChange(
                       settings.copyWith(
-                        themeMode: ThemeModePreference.values.firstWhere((item) => item.name == value),
+                        themeMode: ThemeModePreference.values.firstWhere(
+                          (item) => item.name == value,
+                        ),
                       ),
                     );
                   },
@@ -1299,7 +1411,9 @@ class SettingsScreen extends StatelessWidget {
                   value: settings.immersiveMaterialEnabled,
                   onChanged: (value) {
                     onHaptic();
-                    onSettingsChange(settings.copyWith(immersiveMaterialEnabled: value));
+                    onSettingsChange(
+                      settings.copyWith(immersiveMaterialEnabled: value),
+                    );
                   },
                 ),
               ],
@@ -1315,16 +1429,20 @@ class SettingsScreen extends StatelessWidget {
                   value: settings.fontSize,
                   min: ReadingSettingsRange.minFontSize,
                   max: ReadingSettingsRange.maxFontSize,
-                  onChanged: (value) => onSettingsChange(settings.copyWith(fontSize: value)),
+                  onChanged: (value) =>
+                      onSettingsChange(settings.copyWith(fontSize: value)),
                 ),
                 const SizedBox(height: 18),
                 SettingSliderRow(
                   title: '阅读行距',
-                  valueLabel: '${settings.lineHeightMultiple.toStringAsFixed(1)}x',
+                  valueLabel:
+                      '${settings.lineHeightMultiple.toStringAsFixed(1)}x',
                   value: settings.lineHeightMultiple,
                   min: ReadingSettingsRange.minLineHeight,
                   max: ReadingSettingsRange.maxLineHeight,
-                  onChanged: (value) => onSettingsChange(settings.copyWith(lineHeightMultiple: value)),
+                  onChanged: (value) => onSettingsChange(
+                    settings.copyWith(lineHeightMultiple: value),
+                  ),
                 ),
               ],
             ),
@@ -1377,17 +1495,31 @@ class DetailCanvas extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
               child: Row(
                 children: <Widget>[
-                  GlassIconButton(icon: Icons.arrow_back_ios_new_rounded, label: '返回', onPressed: onBack),
+                  GlassIconButton(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    label: '返回',
+                    onPressed: onBack,
+                  ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text(title, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900)),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                         if (subtitle != null)
                           Text(
                             subtitle!,
-                            style: const TextStyle(color: _muted, fontSize: 20, fontWeight: FontWeight.w500),
+                            style: const TextStyle(
+                              color: _muted,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                       ],
@@ -1428,11 +1560,21 @@ class PageHeading extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(title, style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, height: 1.05)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
+                  ),
+                ),
                 if (subtitle != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
-                    child: Text(subtitle!, style: const TextStyle(color: _muted, fontSize: 18)),
+                    child: Text(
+                      subtitle!,
+                      style: const TextStyle(color: _muted, fontSize: 18),
+                    ),
                   ),
               ],
             ),
@@ -1461,24 +1603,43 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: compact ? EdgeInsets.zero : const EdgeInsets.fromLTRB(20, 4, 20, 16),
+      padding: compact
+          ? EdgeInsets.zero
+          : const EdgeInsets.fromLTRB(20, 4, 20, 16),
       child: Row(
         children: <Widget>[
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(title, style: TextStyle(fontSize: compact ? 30 : 28, fontWeight: FontWeight.w900, height: 1.05)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: compact ? 30 : 28,
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
+                  ),
+                ),
                 if (subtitle != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(subtitle!, style: const TextStyle(color: _muted, fontSize: 17)),
+                    child: Text(
+                      subtitle!,
+                      style: const TextStyle(color: _muted, fontSize: 17),
+                    ),
                   ),
               ],
             ),
           ),
           if (trailing != null)
-            Text(trailing!, style: const TextStyle(color: _muted, fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(
+              trailing!,
+              style: const TextStyle(
+                color: _muted,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
         ],
       ),
     );
@@ -1528,14 +1689,20 @@ class GlassBottomBar extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Icon(tab.icon, size: 28, color: selected ? _accent : _muted),
+                      Icon(
+                        tab.icon,
+                        size: 28,
+                        color: selected ? _accent : _muted,
+                      ),
                       const SizedBox(height: 3),
                       Text(
                         tab.title,
                         style: TextStyle(
                           color: selected ? _accent : _muted,
                           fontSize: 14,
-                          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                          fontWeight: selected
+                              ? FontWeight.w800
+                              : FontWeight.w600,
                         ),
                       ),
                     ],
@@ -1611,11 +1778,7 @@ class GlassCard extends StatelessWidget {
 }
 
 class SearchPill extends StatelessWidget {
-  const SearchPill({
-    required this.hint,
-    required this.onChanged,
-    super.key,
-  });
+  const SearchPill({required this.hint, required this.onChanged, super.key});
 
   final String hint;
   final ValueChanged<String> onChanged;
@@ -1680,7 +1843,9 @@ class HorizontalPills extends StatelessWidget {
             ),
             selectedColor: _accent,
             backgroundColor: _surfaceLow,
-            side: BorderSide(color: Colors.white.withValues(alpha: active ? 0 : 0.12)),
+            side: BorderSide(
+              color: Colors.white.withValues(alpha: active ? 0 : 0.12),
+            ),
             shape: const StadiumBorder(),
             onSelected: (_) => onSelected(entry.key),
           );
@@ -1726,21 +1891,35 @@ class RecommendationHeroCard extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       entry.normalizedId.toUpperCase(),
-                      style: const TextStyle(color: _accent, fontSize: 20, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        color: _accent,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       entry.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900, height: 1.08),
+                      style: const TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                        height: 1.08,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      entry.summary.isEmpty ? '点击进入原生阅读，离线时优先显示本机缓存。' : entry.summary,
+                      entry.summary.isEmpty
+                          ? '点击进入原生阅读，离线时优先显示本机缓存。'
+                          : entry.summary,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Color(0xFFB7BCC0), fontSize: 20, height: 1.45),
+                      style: const TextStyle(
+                        color: Color(0xFFB7BCC0),
+                        fontSize: 20,
+                        height: 1.45,
+                      ),
                     ),
                   ],
                 ),
@@ -1779,14 +1958,26 @@ class VisualPanel extends StatelessWidget {
       ),
       child: Stack(
         children: <Widget>[
-          Positioned.fill(child: CustomPaint(painter: _SignalPainter(seed.hashCode))),
+          Positioned.fill(
+            child: CustomPaint(painter: _SignalPainter(seed.hashCode)),
+          ),
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(icon, size: 62, color: Colors.white.withValues(alpha: 0.78)),
+                Icon(
+                  icon,
+                  size: 62,
+                  color: Colors.white.withValues(alpha: 0.78),
+                ),
                 const SizedBox(height: 14),
-                Text(label, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1819,25 +2010,45 @@ class RankedListCard extends StatelessWidget {
             return Column(
               children: <Widget>[
                 ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 7),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 7,
+                  ),
                   leading: Text(
                     '${index + 1}',
-                    style: const TextStyle(color: _accent, fontSize: 22, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      color: _accent,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   title: Text(
                     item.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                  subtitle: Text(item.normalizedId, style: const TextStyle(color: _muted, fontSize: 15)),
+                  subtitle: Text(
+                    item.normalizedId,
+                    style: const TextStyle(color: _muted, fontSize: 15),
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       if (item.score >= 0)
-                        Text('+${_formatNumber(item.score)}', style: const TextStyle(color: _muted, fontSize: 18)),
+                        Text(
+                          '+${_formatNumber(item.score)}',
+                          style: const TextStyle(color: _muted, fontSize: 18),
+                        ),
                       const SizedBox(width: 12),
-                      const Icon(Icons.chevron_right_rounded, color: _muted, size: 28),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: _muted,
+                        size: 28,
+                      ),
                     ],
                   ),
                   onTap: () => onOpenContent(item),
@@ -1897,16 +2108,28 @@ class ExploreStrip extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(item.sourceLabel, style: const TextStyle(color: _accent, fontWeight: FontWeight.w800)),
+                          Text(
+                            item.sourceLabel,
+                            style: const TextStyle(
+                              color: _accent,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                           const Spacer(),
                           Text(
                             item.entry.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                           const SizedBox(height: 6),
-                          Text(item.entry.normalizedId, style: const TextStyle(color: _muted)),
+                          Text(
+                            item.entry.normalizedId,
+                            style: const TextStyle(color: _muted),
+                          ),
                         ],
                       ),
                     ),
@@ -1923,11 +2146,7 @@ class ExploreStrip extends StatelessWidget {
 }
 
 class CatalogTile extends StatelessWidget {
-  const CatalogTile({
-    required this.entry,
-    required this.onTap,
-    super.key,
-  });
+  const CatalogTile({required this.entry, required this.onTap, super.key});
 
   final CatalogEntry entry;
   final VoidCallback onTap;
@@ -1948,7 +2167,9 @@ class CatalogTile extends StatelessWidget {
                 child: VisualPanel(
                   label: entry.itemId,
                   seed: entry.itemId,
-                  icon: entry.hasArchive3D ? Icons.view_in_ar_rounded : Icons.blur_on_rounded,
+                  icon: entry.hasArchive3D
+                      ? Icons.view_in_ar_rounded
+                      : Icons.blur_on_rounded,
                 ),
               ),
               Expanded(
@@ -1958,21 +2179,38 @@ class CatalogTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(entry.itemId, style: const TextStyle(color: _muted, fontSize: 18, fontWeight: FontWeight.w700)),
+                      Text(
+                        entry.itemId,
+                        style: const TextStyle(
+                          color: _muted,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         entry.displayTitle,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, height: 1.05),
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          height: 1.05,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Expanded(
                         child: Text(
-                          entry.description.isEmpty ? '${entry.itemId} 档案条目，点击进入阅读。' : entry.description,
+                          entry.description.isEmpty
+                              ? '${entry.itemId} 档案条目，点击进入阅读。'
+                              : entry.description,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: _muted, fontSize: 15, height: 1.22),
+                          style: const TextStyle(
+                            color: _muted,
+                            fontSize: 15,
+                            height: 1.22,
+                          ),
                         ),
                       ),
                     ],
@@ -1988,11 +2226,7 @@ class CatalogTile extends StatelessWidget {
 }
 
 class StoryRow extends StatelessWidget {
-  const StoryRow({
-    required this.tale,
-    required this.onTap,
-    super.key,
-  });
+  const StoryRow({required this.tale, required this.onTap, super.key});
 
   final TaleEntry tale;
   final VoidCallback onTap;
@@ -2017,10 +2251,17 @@ class StoryRow extends StatelessWidget {
                       tale.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, height: 1.08),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        height: 1.08,
+                      ),
                     ),
                     const SizedBox(height: 5),
-                    Text(tale.id, style: const TextStyle(color: _muted, fontSize: 16)),
+                    Text(
+                      tale.id,
+                      style: const TextStyle(color: _muted, fontSize: 16),
+                    ),
                   ],
                 ),
               ),
@@ -2064,8 +2305,20 @@ class ResearchProfileCard extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    const Text('LV', style: TextStyle(color: _accent, fontWeight: FontWeight.w900)),
-                    Text('${progress.level}', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900)),
+                    const Text(
+                      'LV',
+                      style: TextStyle(
+                        color: _accent,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      '${progress.level}',
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -2074,9 +2327,25 @@ class ResearchProfileCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const Text('档案阅历', style: TextStyle(color: _muted, fontSize: 18, fontWeight: FontWeight.w700)),
-                    Text(progress.rankTitle.label, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900)),
-                    Text('累计 ${progress.experience} XP', style: const TextStyle(color: _muted, fontSize: 18)),
+                    const Text(
+                      '档案阅历',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      progress.rankTitle.label,
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      '累计 ${progress.experience} XP',
+                      style: const TextStyle(color: _muted, fontSize: 18),
+                    ),
                   ],
                 ),
               ),
@@ -2087,14 +2356,24 @@ class ResearchProfileCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               Text(
-                progress.levelExperienceTarget <= 0 ? '已达最高等级' : '距 Lv.${progress.level + 1}',
-                style: const TextStyle(color: _muted, fontSize: 17, fontWeight: FontWeight.w700),
+                progress.levelExperienceTarget <= 0
+                    ? '已达最高等级'
+                    : '距 Lv.${progress.level + 1}',
+                style: const TextStyle(
+                  color: _muted,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               Text(
                 progress.levelExperienceTarget <= 0
                     ? '等级上限'
                     : '${progress.levelExperience} / ${progress.levelExperienceTarget} XP',
-                style: const TextStyle(color: _muted, fontSize: 17, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  color: _muted,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -2110,20 +2389,39 @@ class ResearchProfileCard extends StatelessWidget {
             crossAxisCount: 2,
             crossAxisSpacing: 14,
             mainAxisSpacing: 14,
-            childAspectRatio: 1.65,
+            mainAxisExtent: 126,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: <Widget>[
-              ResearchStatTile(icon: Icons.schedule_rounded, value: formatDuration(progress.creditedActiveMs), label: '计分阅读'),
-              ResearchStatTile(icon: Icons.article_rounded, value: '${progress.researchedContentCount}', label: '已研读'),
-              ResearchStatTile(icon: Icons.star_rounded, value: '$favoriteCount', label: '收藏'),
-              ResearchStatTile(icon: Icons.inventory_2_rounded, value: '$historyCount', label: '记录'),
+              ResearchStatTile(
+                icon: Icons.schedule_rounded,
+                value: formatDuration(progress.creditedActiveMs),
+                label: '计分阅读',
+              ),
+              ResearchStatTile(
+                icon: Icons.article_rounded,
+                value: '${progress.researchedContentCount}',
+                label: '已研读',
+              ),
+              ResearchStatTile(
+                icon: Icons.star_rounded,
+                value: '$favoriteCount',
+                label: '收藏',
+              ),
+              ResearchStatTile(
+                icon: Icons.inventory_2_rounded,
+                value: '$historyCount',
+                label: '记录',
+              ),
             ],
           ),
           const SizedBox(height: 20),
           const Divider(color: Color(0xFF3F4448)),
           const SizedBox(height: 12),
-          const HintRow(icon: Icons.access_time_filled_rounded, text: '有效阅读每分钟 1 XP；单篇累计满 1 分钟另计 8 XP，每日最多计分 180 分钟'),
+          const HintRow(
+            icon: Icons.access_time_filled_rounded,
+            text: '有效阅读每分钟 1 XP；单篇累计满 1 分钟另计 8 XP，每日最多计分 180 分钟',
+          ),
           const SizedBox(height: 10),
           const HintRow(icon: Icons.lock_rounded, text: '应用内阅读称号，不等同于基金会安保许可'),
         ],
@@ -2147,7 +2445,7 @@ class ResearchStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _surfaceHigh,
         borderRadius: BorderRadius.circular(20),
@@ -2155,10 +2453,25 @@ class ResearchStatTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(icon, color: Colors.white70, size: 28),
-          const Spacer(),
-          Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-          Text(label, style: const TextStyle(color: _muted, fontSize: 15)),
+          Icon(icon, color: Colors.white70, size: 26),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+            ),
+          ),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              style: const TextStyle(color: _muted, fontSize: 15),
+            ),
+          ),
         ],
       ),
     );
@@ -2191,16 +2504,37 @@ class LibraryGroup extends StatelessWidget {
               Container(
                 width: 52,
                 height: 52,
-                decoration: BoxDecoration(color: _surfaceLow, borderRadius: BorderRadius.circular(16)),
+                decoration: BoxDecoration(
+                  color: _surfaceLow,
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 child: Icon(icon, color: _accent, size: 30),
               ),
               const SizedBox(width: 14),
-              Text(title, style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 25,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
               const SizedBox(width: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: _surfaceLow, borderRadius: BorderRadius.circular(99)),
-                child: Text('$count', style: const TextStyle(color: _muted, fontWeight: FontWeight.w800)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _surfaceLow,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    color: _muted,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ],
           ),
@@ -2241,12 +2575,18 @@ class ReadingHistoryRow extends StatelessWidget {
                       entry.content.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                   Text(
                     progress > 0 ? '${(progress * 100).round()}%' : '开始阅读',
-                    style: const TextStyle(color: _accent, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      color: _accent,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ),
@@ -2291,9 +2631,14 @@ class ContentRow extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         leading: const Icon(Icons.info_outline_rounded, color: _muted),
-        title: Text(content.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        title: Text(
+          content.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         subtitle: Text(subtitle, style: const TextStyle(color: _muted)),
-        trailing: trailing ?? const Icon(Icons.chevron_right_rounded, color: _muted),
+        trailing:
+            trailing ?? const Icon(Icons.chevron_right_rounded, color: _muted),
         onTap: onTap,
       ),
     );
@@ -2328,7 +2673,11 @@ class ArticleBlockView extends StatelessWidget {
         child: Text(
           text,
           style: TextStyle(
-            fontSize: level == 1 ? 30 : level == 2 ? 25 : 21,
+            fontSize: level == 1
+                ? 30
+                : level == 2
+                ? 25
+                : 21,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -2337,7 +2686,10 @@ class ArticleBlockView extends StatelessWidget {
       ArticleQuote(:final text) => GlassCard(
         color: _surfaceLow,
         padding: const EdgeInsets.all(16),
-        child: Text(text, style: bodyStyle.copyWith(color: const Color(0xFFC9CED2))),
+        child: Text(
+          text,
+          style: bodyStyle.copyWith(color: const Color(0xFFC9CED2)),
+        ),
       ),
       ArticleListBlock(:final items, :final ordered) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2408,7 +2760,10 @@ class _CachedArticleImageState extends State<CachedArticleImage> {
         return Container(
           height: 160,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: _surface, borderRadius: BorderRadius.circular(18)),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(18),
+          ),
           child: const CircularProgressIndicator(),
         );
       },
@@ -2471,14 +2826,21 @@ class ArticleError extends StatelessWidget {
             children: <Widget>[
               const Icon(Icons.cloud_off_rounded, color: _muted, size: 48),
               const SizedBox(height: 12),
-              Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, color: _muted)),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18, color: _muted),
+              ),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   FilledButton(onPressed: onRetry, child: const Text('重试')),
                   const SizedBox(width: 12),
-                  OutlinedButton(onPressed: onOpenOriginal, child: const Text('原文')),
+                  OutlinedButton(
+                    onPressed: onOpenOriginal,
+                    child: const Text('原文'),
+                  ),
                 ],
               ),
             ],
@@ -2520,11 +2882,27 @@ class ArchiveGalleryCard extends StatelessWidget {
               Row(
                 children: <Widget>[
                   Expanded(
-                    child: Text(asset.title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+                    child: Text(
+                      asset.title,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
-                  StatusPill(text: asset.delivery == ArchiveAssetDelivery.bundled ? '随应用内置' : installed ? '已下载' : '待下载'),
+                  StatusPill(
+                    text: asset.delivery == ArchiveAssetDelivery.bundled
+                        ? '随应用内置'
+                        : installed
+                        ? '已下载'
+                        : '待下载',
+                  ),
                   const SizedBox(width: 10),
-                  const Icon(Icons.chevron_right_rounded, color: _muted, size: 30),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: _muted,
+                    size: 30,
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -2532,14 +2910,24 @@ class ArchiveGalleryCard extends StatelessWidget {
                 asset.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFFB6BAC0), fontSize: 18, height: 1.25),
+                style: const TextStyle(
+                  color: Color(0xFFB6BAC0),
+                  fontSize: 18,
+                  height: 1.25,
+                ),
               ),
               const SizedBox(height: 18),
               Row(
                 children: <Widget>[
-                  Text(asset.objectClass, style: const TextStyle(color: _muted, fontSize: 18)),
+                  Text(
+                    asset.objectClass,
+                    style: const TextStyle(color: _muted, fontSize: 18),
+                  ),
                   const Spacer(),
-                  Text('GLB  ${formatBytes(asset.byteLength)}', style: const TextStyle(color: _muted, fontSize: 18)),
+                  Text(
+                    'GLB  ${formatBytes(asset.byteLength)}',
+                    style: const TextStyle(color: _muted, fontSize: 18),
+                  ),
                 ],
               ),
               if (onDelete != null && installed) ...<Widget>[
@@ -2548,7 +2936,10 @@ class ArchiveGalleryCard extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: FilledButton.tonal(
                     onPressed: onDelete,
-                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFFE1E1), foregroundColor: const Color(0xFF9B2D2D)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFE1E1),
+                      foregroundColor: const Color(0xFF9B2D2D),
+                    ),
                     child: const Text('删除'),
                   ),
                 ),
@@ -2574,7 +2965,14 @@ class StatusPill extends StatelessWidget {
         color: const Color(0xFFEAF2FF),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Text(text, style: const TextStyle(color: Color(0xFF315B9F), fontSize: 15, fontWeight: FontWeight.w900)),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Color(0xFF315B9F),
+          fontSize: 15,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }
@@ -2604,18 +3002,29 @@ class RemoteArchivePlaceholder extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          const Icon(Icons.cloud_download_rounded, size: 64, color: Colors.white70),
+          const Icon(
+            Icons.cloud_download_rounded,
+            size: 64,
+            color: Colors.white70,
+          ),
           const SizedBox(height: 16),
-          Text(asset.title, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
+          Text(
+            asset.title,
+            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+          ),
           const SizedBox(height: 10),
           Text(
             downloading
                 ? progress == null
-                    ? '正在准备下载...'
-                    : '正在下载 ${formatDownloadProgress(progress!)}'
+                      ? '正在准备下载...'
+                      : '正在下载 ${formatDownloadProgress(progress!)}'
                 : '按需下载后保存到应用私有缓存，并校验大小与 SHA-256。',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFFC3C9D1), fontSize: 16, height: 1.4),
+            style: const TextStyle(
+              color: Color(0xFFC3C9D1),
+              fontSize: 16,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 18),
           if (downloading)
@@ -2632,7 +3041,11 @@ class RemoteArchivePlaceholder extends StatelessWidget {
             ),
           if (error != null) ...<Widget>[
             const SizedBox(height: 14),
-            Text(error!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFFFA5A5))),
+            Text(
+              error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFFFFA5A5)),
+            ),
           ],
         ],
       ),
@@ -2641,11 +3054,7 @@ class RemoteArchivePlaceholder extends StatelessWidget {
 }
 
 class MetadataRow extends StatelessWidget {
-  const MetadataRow({
-    required this.label,
-    required this.value,
-    super.key,
-  });
+  const MetadataRow({required this.label, required this.value, super.key});
 
   final String label;
   final String value;
@@ -2657,14 +3066,23 @@ class MetadataRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Expanded(child: Text(label, style: const TextStyle(color: _muted, fontSize: 17))),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: _muted, fontSize: 17),
+            ),
+          ),
           const SizedBox(width: 18),
           Expanded(
             flex: 2,
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -2697,9 +3115,18 @@ class SettingSwitchRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(color: _muted, height: 1.35)),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: _muted, height: 1.35),
+                ),
               ],
             ),
           ),
@@ -2735,8 +3162,17 @@ class SettingSliderRow extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
-            Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            Text(valueLabel, style: const TextStyle(color: _accent, fontWeight: FontWeight.w900)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            Text(
+              valueLabel,
+              style: const TextStyle(
+                color: _accent,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ],
         ),
         Slider(value: value, min: min, max: max, onChanged: onChanged),
@@ -2763,7 +3199,11 @@ class EmptyCard extends StatelessWidget {
       color: _surfaceLow,
       child: Column(
         children: <Widget>[
-          Text(title, textAlign: TextAlign.center, style: const TextStyle(color: _muted, fontSize: 17)),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _muted, fontSize: 17),
+          ),
           if (actionLabel != null && onAction != null) ...<Widget>[
             const SizedBox(height: 12),
             OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
@@ -2775,11 +3215,7 @@ class EmptyCard extends StatelessWidget {
 }
 
 class HintRow extends StatelessWidget {
-  const HintRow({
-    required this.icon,
-    required this.text,
-    super.key,
-  });
+  const HintRow({required this.icon, required this.text, super.key});
 
   final IconData icon;
   final String text;
@@ -2792,7 +3228,12 @@ class HintRow extends StatelessWidget {
         children: <Widget>[
           Icon(icon, color: _muted, size: 24),
           const SizedBox(width: 14),
-          Expanded(child: Text(text, style: const TextStyle(color: _muted, fontSize: 16, height: 1.45))),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: _muted, fontSize: 16, height: 1.45),
+            ),
+          ),
         ],
       ),
     );
@@ -2813,16 +3254,26 @@ class _SignalPainter extends CustomPainter {
       ..color = Colors.white.withValues(alpha: 0.11);
     for (var i = 0; i < 12; i++) {
       final rect = Rect.fromCenter(
-        center: Offset(random.nextDouble() * size.width, random.nextDouble() * size.height),
+        center: Offset(
+          random.nextDouble() * size.width,
+          random.nextDouble() * size.height,
+        ),
         width: size.shortestSide * (0.28 + random.nextDouble() * 0.5),
         height: size.shortestSide * (0.18 + random.nextDouble() * 0.42),
       );
-      canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(18 + random.nextDouble() * 28)), paint);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          rect,
+          Radius.circular(18 + random.nextDouble() * 28),
+        ),
+        paint,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _SignalPainter oldDelegate) => oldDelegate.seed != seed;
+  bool shouldRepaint(covariant _SignalPainter oldDelegate) =>
+      oldDelegate.seed != seed;
 }
 
 List<Color> _colorsForSeed(String seed) {
